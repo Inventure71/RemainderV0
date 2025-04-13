@@ -19,9 +19,9 @@ class MessageDatabaseHandler:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 content TEXT NOT NULL,
                 timestamp TEXT NOT NULL,
-                project TEXT NOT NULL,
-                files TEXT NOT NULL,
-                extra TEXT NOT NULL
+                project TEXT,
+                files TEXT,
+                extra TEXT
             )
         """)
         self.conn.commit()
@@ -40,8 +40,18 @@ class MessageDatabaseHandler:
         self.conn.commit()
 
     def get_all_messages(self):
-        self.cursor.execute("SELECT id, category, description FROM messages")
-        return self.cursor.fetchall()
+        self.cursor.execute("SELECT id, content, timestamp, project, files FROM messages")
+        rows = self.cursor.fetchall()
+        messages = []
+        for row in rows:
+            messages.append({
+                "id": row[0],
+                "content": row[1],
+                "timestamp": row[2],
+                "project": row[3],
+                "files": row[4]
+            })
+        return messages
 
     def close(self):
         if self.conn:

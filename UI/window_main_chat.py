@@ -1,6 +1,10 @@
+import time
 import tkinter as tk
 from UI.components.widget_top_nav_bar import TopBar
 from UI.components.scrollable_messages_box import ScrollableMessageArea
+
+from DatabaseUtils.database_messages import MessageDatabaseHandler
+from DatabaseUtils.database_projects import ProjectsDatabaseHandler
 
 class MainChatWindow(tk.Frame):
     def __init__(self, parent, controller):
@@ -30,13 +34,23 @@ class MainChatWindow(tk.Frame):
         send_button = tk.Button(input_frame, text="Send", command=self.send_message)
         send_button.grid(row=0, column=1)
 
+
+        # --- Load Messages from Database ---
+        self.message_db = MessageDatabaseHandler()
+        self.messages = self.message_db.get_all_messages()
+        print(self.messages)
+
+        self.populate_chat_area(self.messages)
+
+
     def send_message(self):
         text = self.message_entry.get().strip()
         if text:
             self.scrollable_area.add_message(text, assigned_project=None, project_list=["Project Alpha", "BetaTeam", "Notes"])
+            self.message_db.add_message({'content': text, 'project': None, 'timestamp': time.time(), 'files': None, 'extra': None})
             self.message_entry.delete(0, tk.END)
 
     def populate_chat_area(self, messages):
         """Populate the chat area with messages from the database"""
         for message in messages:
-            self.scrollable_area.add_message(message['text'], assigned_project=message.get('project'), project_list=["Project Alpha", "BetaTeam", "Notes"])
+            self.scrollable_area.add_message(message['content'], assigned_project=message.get('project'), project_list=["Project Alpha", "BetaTeam", "Notes"])

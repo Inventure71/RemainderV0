@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-class MessageDatabaseHandler:
+class ProjectsDatabaseHandler:
     def __init__(self, db_name="Databases/projects.db"):
         self.db_name = db_name
         self.conn = None
@@ -42,7 +42,7 @@ class MessageDatabaseHandler:
         self.conn.commit()
 
     def get_all_projects(self):
-        self.cursor.execute("SELECT id, category, description FROM projects")
+        self.cursor.execute("SELECT id, name, description, timestamp FROM projects")
         return self.cursor.fetchall()
 
     def close(self):
