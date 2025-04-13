@@ -70,7 +70,7 @@ class MessageBox(tk.Frame):
     def remove_from_project(self):
         print("Removed from project (TO IMPLEMENT)")
         self.assigned_project = None
-        self.db_manager.update_message(self.id_of_message, project=None)
+        self.db_manager.update_message(self.id_of_message, project="")
         self.flag_label.config(text="")
 
     def edit_message(self):
