@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
-from UI.projectsWindow import ProjectsWindow
-from UI.mainChatWindow import MainChatWindow
+from UI.window_projects import ProjectsWindow
+from UI.window_main_chat import MainChatWindow
 
 # --- App Setup ---
 class App(tk.Tk):

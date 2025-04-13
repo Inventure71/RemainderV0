@@ -1,6 +1,6 @@
 import tkinter as tk
-from UI.components.topBar import TopBar
-from UI.components.scrollableMessageBox import ScrollableMessageArea
+from UI.components.widget_top_nav_bar import TopBar
+from UI.components.scrollable_messages_box import ScrollableMessageArea
 
 class MainChatWindow(tk.Frame):
     def __init__(self, parent, controller):
