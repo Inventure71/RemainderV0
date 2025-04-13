@@ -9,7 +9,10 @@ from DatabaseUtils.database_projects import ProjectsDatabaseHandler
 class MainChatWindow(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent, bg="#2c2c2c")  # dark bg if you want like in screenshot
+
         self.controller = controller
+        self.message_db = MessageDatabaseHandler()
+
 
         # Configure the main layout to stretch
         self.grid_rowconfigure(1, weight=1)  # Scrollable area
@@ -19,7 +22,7 @@ class MainChatWindow(tk.Frame):
         TopBar(self, controller).grid(row=0, column=0, sticky="ew")
 
         # --- Scrollable Chat Area ---
-        self.scrollable_area = ScrollableMessageArea(self)
+        self.scrollable_area = ScrollableMessageArea(self, db_manager=self.message_db)
         self.scrollable_area.grid(row=1, column=0, sticky="nsew")
 
         # --- Bottom Input Bar ---
@@ -36,7 +39,6 @@ class MainChatWindow(tk.Frame):
 
 
         # --- Load Messages from Database ---
-        self.message_db = MessageDatabaseHandler()
         self.messages = self.message_db.get_all_messages()
         print(self.messages)
 
@@ -53,4 +55,4 @@ class MainChatWindow(tk.Frame):
     def populate_chat_area(self, messages):
         """Populate the chat area with messages from the database"""
         for message in messages:
-            self.scrollable_area.add_message(message['content'], assigned_project=message.get('project'), project_list=["Project Alpha", "BetaTeam", "Notes"])
+            self.scrollable_area.add_message(message['content'], message_id=message["id"] ,assigned_project=message.get('project'), project_list=["Project Alpha", "BetaTeam", "Notes"])

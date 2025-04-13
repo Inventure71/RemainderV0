@@ -31,12 +31,58 @@ class MessageDatabaseHandler:
                             (message['content'], message['timestamp'], message['project'], message['files'], message['extra']))
         self.conn.commit()
 
-    def update_message(self, task_id, new_content): # only modifies text
-        self.cursor.execute("UPDATE messages SET content = ? WHERE id = ?", (new_content, task_id))
+    def update_message(self, task_id, content=None, timestamp=None, project=None, files=None, extra=None):
+        """
+        Update any component of a message by its ID.
+        Only the provided parameters will be updated.
+
+        Parameters:
+        - task_id: ID of the message to update
+        - content: New content text (optional)
+        - timestamp: New timestamp (optional)
+        - project: New project name (optional)
+        - files: New files data (optional)
+        - extra: New extra data (optional)
+        """
+        # Start building the update query
+        update_parts = []
+        values = []
+
+        # Add each parameter that is not None to the update query
+        if content is not None:
+            update_parts.append("content = ?")
+            values.append(content)
+
+        if timestamp is not None:
+            update_parts.append("timestamp = ?")
+            values.append(timestamp)
+
+        if project is not None:
+            update_parts.append("project = ?")
+            values.append(project)
+
+        if files is not None:
+            update_parts.append("files = ?")
+            values.append(files)
+
+        if extra is not None:
+            update_parts.append("extra = ?")
+            values.append(extra)
+
+        # If no updates are provided, just return
+        if not update_parts:
+            return
+
+        # Combine the SQL parts and add the task_id
+        sql = f"UPDATE messages SET {', '.join(update_parts)} WHERE id = ?"
+        values.append(task_id)
+
+        # Execute the update
+        self.cursor.execute(sql, values)
         self.conn.commit()
 
-    def delete_message(self, task_id):
-        self.cursor.execute("DELETE FROM messages WHERE id = ?", (task_id,))
+    def delete_message(self, message_id):
+        self.cursor.execute("DELETE FROM messages WHERE id = ?", (message_id,))
         self.conn.commit()
 
     def get_all_messages(self):

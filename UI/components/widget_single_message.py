@@ -1,7 +1,7 @@
 import tkinter as tk
 
 class MessageBox(tk.Frame):
-    def __init__(self, parent, text, assigned_project=None, project_list=None, **kwargs):
+    def __init__(self, parent, text, db_manager=None, id_of_message=0, assigned_project=None, project_list=None, **kwargs):
         super().__init__(parent, padx=10, pady=10, bd=1, relief="solid", bg="white", **kwargs)
 
         """VAIRABLES"""
@@ -9,6 +9,8 @@ class MessageBox(tk.Frame):
         self.is_edited = False
         self.identity_in_database = None
 
+        self.id_of_message = id_of_message
+        self.db_manager = db_manager
 
         if project_list is None:
             project_list = []
@@ -62,11 +64,13 @@ class MessageBox(tk.Frame):
     def add_to_project(self, project_name):
         print(f"Adding message to project: {project_name} (TO IMPLEMENT)")
         self.assigned_project = project_name
+        self.db_manager.update_message(self.id_of_message, project=project_name)
         self.flag_label.config(text=project_name[:3].upper())
 
     def remove_from_project(self):
         print("Removed from project (TO IMPLEMENT)")
         self.assigned_project = None
+        self.db_manager.update_message(self.id_of_message, project=None)
         self.flag_label.config(text="")
 
     def edit_message(self):
@@ -74,6 +78,9 @@ class MessageBox(tk.Frame):
 
     def delete_message(self):
         print("Deleting message (TO IMPLEMENT)")
+        self.db_manager.delete_message(self.id_of_message)
+        self.should_be_deleted = True
+        self.destroy()
 
 
 if __name__ == "__main__":
