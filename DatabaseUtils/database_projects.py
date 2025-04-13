@@ -25,9 +25,16 @@ class ProjectsDatabaseHandler:
         """)
         self.conn.commit()
 
-    def add_project(self, message):
+    def add_project(self, project_name, timestamp, project_description=None, extra=None):
+        if project_description is None:
+            project_description = ""
+
+        if extra is None:
+            extra = ""
+
         self.cursor.execute("INSERT INTO projects (name, description, timestamp, extra) VALUES (?, ?, ?, ?)",
-                            (message['name'], message['description'], message['timestamp'], message['extra']))
+                            (project_name, project_description, timestamp, extra))
+
         self.conn.commit()
 
     def update_project(self, task_id , new_name=None, new_description=None): # only modifies text
