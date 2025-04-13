@@ -1,5 +1,5 @@
 import tkinter as tk
-from UI.messageWidget import MessageBox
+from UI.components.messageWidget import MessageBox
 
 class ScrollableMessageArea(tk.Frame):
     def __init__(self, parent):

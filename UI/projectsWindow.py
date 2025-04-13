@@ -1,8 +1,7 @@
 import tkinter as tk
-from tkinter import messagebox
 
-from UI.scrollableBoxWClicableBoxes import ScrollableBox
-from UI.topBar import TopBar
+from UI.components.scrollableBoxWClicableBoxes import ScrollableBox
+from UI.components.topBar import TopBar
 
 # --- Second Menu Frame ---
 class ProjectsWindow(tk.Frame):
