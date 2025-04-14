@@ -2,6 +2,8 @@ import sqlite3
 import os
 
 class ProjectsDatabaseHandler:
+    _projects = None
+
     def __init__(self, db_name="Databases/projects.db"):
         self.db_name = db_name
         self.conn = None
@@ -49,8 +51,26 @@ class ProjectsDatabaseHandler:
         self.conn.commit()
 
     def get_all_projects(self):
-        self.cursor.execute("SELECT id, name, description, timestamp FROM projects")
-        return self.cursor.fetchall()
+        self.cursor.execute("SELECT id, name, description, timestamp, extra FROM projects")
+        rows = self.cursor.fetchall()
+        projects = []
+
+        for row in rows:
+            project = {
+                "id": row[0],
+                "name": row[1],
+                "description": row[2],
+                "timestamp": row[3],
+                "extra": row[4]
+            }
+            projects.append(project)
+
+        ProjectsDatabaseHandler._projects = projects
+        return projects
+
+    @classmethod
+    def get_projects(cls):
+        return cls._projects
 
     def close(self):
         if self.conn:

@@ -14,6 +14,8 @@ class ProjectsWindow(tk.Frame):
 
         self.p_database = ProjectsDatabaseHandler()
         self.controller = controller
+        self.projects = None # initialize the variable
+        self.refresh_projects() # load projects from the database
 
         # Create the top bar
         TopBar(self, controller)
@@ -24,8 +26,8 @@ class ProjectsWindow(tk.Frame):
         top_frame = tk.Frame(self, pady=10)
         top_frame.pack(fill="x")
 
-        scrollable = ScrollableBox(self, box_count=20, on_click_callback=self.clicked_project_folder)
-        scrollable.pack(fill="both", expand=True, padx=10, pady=10)
+        self.scrollable = ScrollableBox(self, project_dictionary=self.projects, on_click_callback=self.clicked_project_folder)
+        self.scrollable.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Name of the new project
         input_frame = tk.Frame(self, bg="lightgray", padx=10, pady=10)
@@ -41,13 +43,17 @@ class ProjectsWindow(tk.Frame):
         create_button.pack(side="left", padx=5)
 
     def refresh_projects(self):
-        projects = self.p_database.get_all_projects()
+        self.projects = self.p_database.get_all_projects()
+        return self.projects
 
     def clicked_project_folder(self, index):
         print(f"You clicked box #{index + 1}")
+        print(self.projects[index])
 
     def create_new_project(self, project_name):
         self.p_database.add_project(project_name, time.time())
+        self.refresh_projects()
+        self.scrollable.update_projects(project_dictionary=self.projects)
 
     def create_new_project_from_entry(self):
         project_name = self.new_project_entry.get().strip()

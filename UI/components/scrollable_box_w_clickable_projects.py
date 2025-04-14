@@ -1,7 +1,7 @@
 import tkinter as tk
 
 class ScrollableBox(tk.Frame):
-    def __init__(self, parent, box_count, project_dictionary=None, columns=4, on_click_callback=None):
+    def __init__(self, parent, box_count=20, project_dictionary=None, columns=4, on_click_callback=None):
         super().__init__(parent)
 
         self.columns = columns
