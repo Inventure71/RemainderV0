@@ -34,6 +34,7 @@ class App(tk.Tk):
     def show_frame(self, page_name: str):
         """Raise the frame to the top by string name"""
         frame = self.frames[page_name]
+        frame.refresh()
         frame.tkraise()
 
     def select_project(self, project_dictionary):

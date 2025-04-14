@@ -37,7 +37,10 @@ class MainChatWindow(tk.Frame):
         send_button = tk.Button(input_frame, text="Send", command=self.send_message)
         send_button.grid(row=0, column=1)
 
+        self.messages = None
+        self.refresh()
 
+    def refresh(self):
         # --- Load Messages from Database ---
         self.messages = self.message_db.get_all_messages()
         print(self.messages)

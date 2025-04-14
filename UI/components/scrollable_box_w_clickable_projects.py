@@ -30,7 +30,7 @@ class ScrollableBox(tk.Frame):
         else:
             print(f"Box {idx+1} clicked!")
 
-    def update_projects(self, project_dictionary=None, box_count=20, on_click_callback=None):
+    def update_projects(self, projects_dictionary=None, box_count=20, on_click_callback=None):
         # clear existing boxes
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
@@ -38,8 +38,8 @@ class ScrollableBox(tk.Frame):
         if on_click_callback:
             self.on_click_callback = on_click_callback
 
-        if project_dictionary:
-            for i, project in enumerate(project_dictionary):
+        if projects_dictionary:
+            for i, project in enumerate(projects_dictionary):
                 row = i // self.columns
                 col = i % self.columns
 

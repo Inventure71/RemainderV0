@@ -15,6 +15,9 @@ class ProjectChatWindow(MainChatWindow):
 
         super().__init__(parent, controller)
 
+    def refresh(self):
+        self.change_project(self.project_dictionary)
+
     def send_message(self, project_name=None):
         if self.project_dictionary:
             super().send_message(project_name=self.project_dictionary["name"])
@@ -23,8 +26,9 @@ class ProjectChatWindow(MainChatWindow):
 
     def change_project(self, project_dictionary):
         self.project_dictionary = project_dictionary
-        self.messages = self.message_db.get_project_messages(self.project_dictionary["name"])
-        self.populate_chat_area(self.messages)
+        if project_dictionary:
+            self.messages = self.message_db.get_project_messages(self.project_dictionary["name"])
+            self.populate_chat_area(self.messages)
 
     def populate_chat_area(self, messages):
         """Populate the chat area with messages from the database"""
