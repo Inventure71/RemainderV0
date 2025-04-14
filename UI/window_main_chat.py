@@ -13,7 +13,6 @@ class MainChatWindow(tk.Frame):
         self.controller = controller
         self.message_db = MessageDatabaseHandler()
 
-
         # Configure the main layout to stretch
         self.grid_rowconfigure(1, weight=1)  # Scrollable area
         self.grid_columnconfigure(0, weight=1)

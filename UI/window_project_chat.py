@@ -6,7 +6,7 @@ from UI.components.scrollable_messages_box import ScrollableMessageArea
 from DatabaseUtils.database_messages import MessageDatabaseHandler
 from DatabaseUtils.database_projects import ProjectsDatabaseHandler
 from UI.window_main_chat import MainChatWindow
-
+from UI.components.widget_model_chat import WidgetModelChat
 
 class ProjectChatWindow(MainChatWindow):
     def __init__(self, parent, controller, project_dictionary=None):
@@ -14,6 +14,8 @@ class ProjectChatWindow(MainChatWindow):
         self.messages = None
 
         super().__init__(parent, controller)
+
+        self.model_chat = WidgetModelChat(self)
 
     def refresh(self):
         self.change_project(self.project_dictionary)
@@ -40,3 +42,4 @@ class ProjectChatWindow(MainChatWindow):
                 self.scrollable_area.add_message(message['content'], message_id=message["id"] ,assigned_project=message.get('project'), project_list=[])
         else:
             self.scrollable_area.add_message("No Project Selected")
+
