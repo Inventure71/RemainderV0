@@ -24,7 +24,7 @@ class ProjectsWindow(tk.Frame):
         top_frame = tk.Frame(self, pady=10)
         top_frame.pack(fill="x")
 
-        scrollable = ScrollableBox(self, box_count=20, on_click_callback=self.handle_box_click)
+        scrollable = ScrollableBox(self, box_count=20, on_click_callback=self.clicked_project_folder)
         scrollable.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Name of the new project
@@ -40,7 +40,10 @@ class ProjectsWindow(tk.Frame):
                                   command=self.create_new_project_from_entry)
         create_button.pack(side="left", padx=5)
 
-    def handle_box_click(self, index):
+    def refresh_projects(self):
+        projects = self.p_database.get_all_projects()
+
+    def clicked_project_folder(self, index):
         print(f"You clicked box #{index + 1}")
 
     def create_new_project(self, project_name):
