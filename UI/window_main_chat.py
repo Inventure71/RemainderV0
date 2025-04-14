@@ -44,15 +44,14 @@ class MainChatWindow(tk.Frame):
 
         self.populate_chat_area(self.messages)
 
-
-    def send_message(self):
+    def send_message(self, project_name=None):
         text = self.message_entry.get().strip()
         if text:
-            self.scrollable_area.add_message(text, assigned_project=None, project_list=["Project Alpha", "BetaTeam", "Notes"])
-            self.message_db.add_message({'content': text, 'project': None, 'timestamp': time.time(), 'files': None, 'extra': None})
+            index = self.message_db.add_message({'content': text, 'project': project_name, 'timestamp': time.time(), 'files': None, 'extra': None})
+            self.scrollable_area.add_message(text, message_id=index, assigned_project=project_name)
             self.message_entry.delete(0, tk.END)
 
     def populate_chat_area(self, messages):
         """Populate the chat area with messages from the database"""
         for message in messages:
-            self.scrollable_area.add_message(message['content'], message_id=message["id"] ,assigned_project=message.get('project'), project_list=["Project Alpha", "BetaTeam", "Notes"])
+            self.scrollable_area.add_message(message['content'], message_id=message["id"] ,assigned_project=message.get('project'), project_list=[])

@@ -31,6 +31,11 @@ class MessageDatabaseHandler:
                             (message['content'], message['timestamp'], message['project'], message['files'], message['extra']))
         self.conn.commit()
 
+        # Get the last inserted ID
+        self.cursor.execute("SELECT last_insert_rowid()")
+        last_id = self.cursor.fetchone()[0]
+        return last_id
+
     def update_message(self, task_id, content=None, timestamp=None, project=None, files=None, extra=None):
         """
         Update any component of a message by its ID.
@@ -87,6 +92,22 @@ class MessageDatabaseHandler:
 
     def get_all_messages(self):
         self.cursor.execute("SELECT id, content, timestamp, project, files FROM messages")
+        rows = self.cursor.fetchall()
+        messages = []
+        for row in rows:
+            messages.append({
+                "id": row[0],
+                "content": row[1],
+                "timestamp": row[2],
+                "project": row[3],
+                "files": row[4]
+            })
+        return messages
+
+    def get_project_messages(self, project_name):
+        #self.cursor.execute("SELECT id, content, timestamp, files FROM messages")
+        self.cursor.execute("SELECT id, content, timestamp, project, files FROM messages WHERE project = ?", (project_name,))
+
         rows = self.cursor.fetchall()
         messages = []
         for row in rows:

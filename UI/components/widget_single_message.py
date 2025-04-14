@@ -1,5 +1,8 @@
 import tkinter as tk
 
+from DatabaseUtils.database_projects import ProjectsDatabaseHandler
+
+
 class MessageBox(tk.Frame):
     def __init__(self, parent, text, db_manager=None, id_of_message=0, assigned_project=None, project_list=None, **kwargs):
         super().__init__(parent, padx=10, pady=10, bd=1, relief="solid", bg="white", **kwargs)
@@ -30,10 +33,10 @@ class MessageBox(tk.Frame):
         self.menu_button.config(menu=self.menu)
 
         # Submenu for adding to a project
-        add_project_menu = tk.Menu(self.menu, tearoff=0)
+        self.add_project_menu = tk.Menu(self.menu, tearoff=0)
         for project in project_list:
-            add_project_menu.add_command(label=project, command=lambda p=project: self.add_to_project(p))
-        self.menu.add_cascade(label="Add to project", menu=add_project_menu)
+            self.add_project_menu.add_command(label=project, command=lambda p=project: self.add_to_project(p))
+        self.menu.add_cascade(label="Add to project", menu=self.add_project_menu)
 
         # Option to remove from project
         if self.assigned_project:
@@ -60,6 +63,17 @@ class MessageBox(tk.Frame):
             font=("Arial", 12)
         )
         self.message_label.pack(side="left", fill="both", expand=True, padx=(0, 10))  # Add space from right
+
+        self.refresh_project_list()
+
+    def refresh_project_list(self):
+        self.project_list = ProjectsDatabaseHandler().get_all_projects()
+
+        self.add_project_menu = tk.Menu(self.menu, tearoff=0)
+        for project in self.project_list:
+            self.add_project_menu.add_command(label=project['name'][:10], command=lambda p=project['name']: self.add_to_project(p))
+        self.menu.delete(0)
+        self.menu.insert_cascade(index=0, label="Add to project", menu=self.add_project_menu)
 
     def add_to_project(self, project_name):
         print(f"Adding message to project: {project_name} (TO IMPLEMENT)")

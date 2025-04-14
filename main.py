@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
+
+from UI.window_project_chat import ProjectChatWindow
 from UI.window_projects import ProjectsWindow
 from UI.window_main_chat import MainChatWindow
 
@@ -21,7 +23,7 @@ class App(tk.Tk):
         # Dictionary to store pages by name
         self.frames = {}
 
-        for F in (MainChatWindow, ProjectsWindow):
+        for F in (MainChatWindow, ProjectsWindow, ProjectChatWindow):
             page_name = F.__name__  # e.g., "MainChatWindow"
             frame = F(parent=container, controller=self)
             frame.grid(row=0, column=0, sticky="nsew")
