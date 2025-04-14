@@ -15,8 +15,6 @@ class ProjectChatWindow(MainChatWindow):
 
         super().__init__(parent, controller)
 
-        self.model_chat = WidgetModelChat(self)
-
     def refresh(self):
         self.change_project(self.project_dictionary)
 

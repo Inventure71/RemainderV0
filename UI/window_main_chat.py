@@ -1,5 +1,7 @@
 import time
 import tkinter as tk
+
+from UI.components.widget_model_chat import WidgetModelChat
 from UI.components.widget_top_nav_bar import TopBar
 from UI.components.scrollable_messages_box import ScrollableMessageArea
 
@@ -38,6 +40,8 @@ class MainChatWindow(tk.Frame):
 
         self.messages = None
         self.refresh()
+
+        self.model_chat = WidgetModelChat(self)
 
     def refresh(self):
         # --- Load Messages from Database ---

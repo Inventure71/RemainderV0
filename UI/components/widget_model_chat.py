@@ -6,6 +6,7 @@ from UI.components.scrollable_messages_box import ScrollableMessageArea
 class WidgetModelChat:
     def __init__(self, parent):
         self.parent = parent
+        self.project = None
 
         # --- Scrollable Chat Area ---
         self.scrollable_area = ScrollableMessageArea(parent, db_manager=None)
@@ -23,15 +24,18 @@ class WidgetModelChat:
         send_button = tk.Button(input_frame, text="Send", command=self.send_message_to_model)
         send_button.grid(row=0, column=11)
 
-        # get current project
+    def send_message_to_model(self):
+        # get current project for context
         try:
-            self.project = parent.project_dictionary
-            print(parent.project_dictionary)
+            self.project = self.parent.project_dictionary
+            print(self.parent.project_dictionary)
+            self.scrollable_area.add_message(self.project["name"], message_id=9999999, assigned_project="")
+
         except:
             print("Maybe it is not a project but it is main chat, just in case the context is now set to GLOBAL")
             self.project = None
+            self.scrollable_area.add_message("main", message_id=0, assigned_project="")
 
-    def send_message_to_model(self):
         print("implement send message to model")
         text = self.description_entry.get().strip()
         if text:
