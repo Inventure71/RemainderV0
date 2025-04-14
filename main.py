@@ -36,6 +36,9 @@ class App(tk.Tk):
         frame = self.frames[page_name]
         frame.tkraise()
 
+    def select_project(self, project_dictionary):
+        self.frames["ProjectChatWindow"].change_project(project_dictionary)
+        self.show_frame("ProjectChatWindow")
 
 
 """

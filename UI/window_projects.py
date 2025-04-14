@@ -49,6 +49,7 @@ class ProjectsWindow(tk.Frame):
     def clicked_project_folder(self, index):
         print(f"You clicked box #{index + 1}")
         print(self.projects[index])
+        self.controller.select_project(self.projects[index])
 
     def create_new_project(self, project_name):
         self.p_database.add_project(project_name, time.time())

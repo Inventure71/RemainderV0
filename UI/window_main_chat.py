@@ -53,5 +53,8 @@ class MainChatWindow(tk.Frame):
 
     def populate_chat_area(self, messages):
         """Populate the chat area with messages from the database"""
+        self.scrollable_area = ScrollableMessageArea(self, db_manager=self.message_db)
+        self.scrollable_area.grid(row=1, column=0, sticky="nsew")
+
         for message in messages:
             self.scrollable_area.add_message(message['content'], message_id=message["id"] ,assigned_project=message.get('project'), project_list=[])
