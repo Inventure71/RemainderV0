@@ -2,7 +2,7 @@ import tkinter as tk
 
 from UI.components.scrollable_messages_box import ScrollableMessageArea
 from DatabaseUtils.database_messages import MessageDatabaseHandler
-from Utils.model_handler import GeminiClient
+from Utils.model_handler import ModelClient
 
 class WidgetModelChat:
     def __init__(self, parent):
