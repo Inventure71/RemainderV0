@@ -90,23 +90,15 @@ class MessageDatabaseHandler:
         self.cursor.execute("DELETE FROM messages WHERE id = ?", (message_id,))
         self.conn.commit()
 
-    def get_all_messages(self):
-        self.cursor.execute("SELECT id, content, timestamp, project, files FROM messages")
-        rows = self.cursor.fetchall()
-        messages = []
-        for row in rows:
-            messages.append({
-                "id": row[0],
-                "content": row[1],
-                "timestamp": row[2],
-                "project": row[3],
-                "files": row[4]
-            })
-        return messages
-
-    def get_project_messages(self, project_name):
+    def get_project_messages(self, project_name=None):
         #self.cursor.execute("SELECT id, content, timestamp, files FROM messages")
-        self.cursor.execute("SELECT id, content, timestamp, project, files FROM messages WHERE project = ?", (project_name,))
+        # gets all messages if no name is specified
+
+        if project_name:
+            self.cursor.execute("SELECT id, content, timestamp, project, files FROM messages WHERE project = ?",
+                                (project_name,))
+        else:
+            self.cursor.execute("SELECT id, content, timestamp, project, files FROM messages")
 
         rows = self.cursor.fetchall()
         messages = []

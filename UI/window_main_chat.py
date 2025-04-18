@@ -45,7 +45,7 @@ class MainChatWindow(tk.Frame):
 
     def refresh(self):
         # --- Load Messages from Database ---
-        self.messages = self.message_db.get_all_messages()
+        self.messages = self.message_db.get_project_messages()
         print(self.messages)
 
         self.populate_chat_area(self.messages)
