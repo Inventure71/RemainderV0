@@ -1,0 +1,16 @@
+API_keys/gemini_api_key.json
+Databases/messages.db
+Databases/projects.db
+.DS_Store
+DatabaseUtils/__pycache__/database_messages.cpython-310.pyc
+DatabaseUtils/__pycache__/database_projects.cpython-310.pyc
+UI/__pycache__/window_main_chat.cpython-310.pyc
+UI/__pycache__/window_project_chat.cpython-310.pyc
+UI/__pycache__/window_projects.cpython-310.pyc
+UI/components/__pycache__/scrollable_box_w_clickable_projects.cpython-310.pyc
+UI/components/__pycache__/scrollable_messages_box.cpython-310.pyc
+UI/components/__pycache__/widget_model_chat.cpython-310.pyc
+UI/components/__pycache__/widget_single_message.cpython-310.pyc
+UI/components/__pycache__/widget_top_nav_bar.cpython-310.pyc
+Utils/__pycache__/model_handler.cpython-310.pyc
+Utils/__pycache__/prompts.cpython-310.pyc

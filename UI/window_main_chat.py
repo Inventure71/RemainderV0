@@ -18,6 +18,7 @@ class MainChatWindow(tk.Frame):
         # Configure the main layout to stretch
         self.grid_rowconfigure(1, weight=1)  # Scrollable area
         self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(10, weight=1)  # Allow model chat column to expand
 
         # --- Top Bar ---
         TopBar(self, controller).grid(row=0, column=0, sticky="ew")

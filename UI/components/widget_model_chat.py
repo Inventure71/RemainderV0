@@ -108,12 +108,19 @@ class WidgetModelChat:
 
                                 if matching_messages:
                                     message = matching_messages[0]
-                                    # Add each mentioned message to the chat widget with the reason
+                                    # Add each mentioned message to the chat widget with the reason, clickable
+                                    def jump_to_main_chat(mid=msg_id):
+                                        try:
+                                            if hasattr(self.parent, 'scrollable_area'):
+                                                self.parent.scrollable_area.jump_to_message(mid)
+                                        except Exception as e:
+                                            print(f"Jump to message failed: {e}")
                                     self.scrollable_area.add_message(
-                                        f"Referenced message #{msg_id}: {message['content']}\n\nReason: {reason}",
+                                        f"{message['content']}\n\nReason: {reason}\nReferenced message N{msg_id}",
                                         message_id=msg_id,
-                                        assigned_project=message.get("project", ""),
-                                        alignment="left"
+                                        assigned_project=message.get('project', ""),
+                                        alignment="left",
+                                        on_click=jump_to_main_chat
                                     )
                 except Exception as e:
                     print(f"Error parsing response or extracting messages: {e}")

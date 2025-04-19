@@ -6,6 +6,7 @@ class ScrollableMessageArea(tk.Frame):
         super().__init__(parent)
 
         self.db_manager = db_manager
+        self.message_boxes = {}  
 
         # Create Canvas + Scrollbar
         self.canvas = tk.Canvas(self, borderwidth=0, background="white")
@@ -43,7 +44,7 @@ class ScrollableMessageArea(tk.Frame):
                 scroll_amount = -1 if event.delta > 0 else 1
             self.canvas.yview_scroll(scroll_amount, "units")
 
-    def add_message(self, text, message_id=0, assigned_project=None, project_list=None, alignment="left"):
+    def add_message(self, text, message_id=0, assigned_project=None, project_list=None, alignment="left", on_click=None):
         """
         Adds a message box to the scrollable area.
 
@@ -60,7 +61,8 @@ class ScrollableMessageArea(tk.Frame):
             db_manager=self.db_manager,
             id_of_message=message_id,
             assigned_project=assigned_project,
-            project_list=project_list
+            project_list=project_list,
+            on_click=on_click
         )
 
         # Determine packing options based on alignment
@@ -71,6 +73,23 @@ class ScrollableMessageArea(tk.Frame):
             # Pack to the left side (West)
             message_box.pack(fill="x", padx=(10, 50), pady=5, anchor='w')  # Add right padding
 
+        # Store the message box for jump functionality
+        if message_id:
+            self.message_boxes[message_id] = message_box
+        if on_click:
+            message_box.message_label.bind("<Button-1>", lambda e, mid=message_id: on_click(mid))
+            message_box.message_label.config(cursor="hand2", fg="#3366ff", font=("Arial", 12, "underline"))
+
         # Scroll to the bottom after adding a message (optional)
         self.canvas.update_idletasks()  # Ensure layout is updated
         self.canvas.yview_moveto(1.0)  # Move scrollbar to the end
+
+    def jump_to_message(self, message_id):
+        """Scroll to the widget for the given message ID in this scrollable area."""
+        widget = self.message_boxes.get(message_id)
+        if widget:
+            self.canvas.update_idletasks()
+            total_height = self.inner_frame.winfo_height()
+            y = widget.winfo_y()
+            fraction = y / total_height if total_height else 0
+            self.canvas.yview_moveto(fraction)

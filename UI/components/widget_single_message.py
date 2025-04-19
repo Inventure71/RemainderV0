@@ -4,7 +4,7 @@ from DatabaseUtils.database_projects import ProjectsDatabaseHandler
 
 
 class MessageBox(tk.Frame):
-    def __init__(self, parent, text, db_manager=None, id_of_message=0, assigned_project=None, project_list=None, **kwargs):
+    def __init__(self, parent, text, db_manager=None, id_of_message=0, assigned_project=None, project_list=None, on_click=None, **kwargs):
         super().__init__(parent, padx=10, pady=10, bd=1, relief="solid", bg="white", **kwargs)
 
         """VAIRABLES"""
@@ -63,6 +63,11 @@ class MessageBox(tk.Frame):
             font=("Arial", 12)
         )
         self.message_label.pack(side="left", fill="both", expand=True, padx=(0, 10))  # Add space from right
+
+        if on_click:
+            self.message_label.bind("<Button-1>", lambda e: on_click(self.id_of_message))
+            self.message_label.config(cursor="hand2", fg="#3366ff", font=("Arial", 12, "underline"))
+
 
         self.refresh_project_list()
 
