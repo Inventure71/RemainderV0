@@ -28,15 +28,15 @@ class MainChatWindow(tk.Frame):
         self.scrollable_area.grid(row=1, column=0, sticky="nsew")
 
         # --- Bottom Input Bar ---
-        input_frame = tk.Frame(self, bg="lightgray", padx=10, pady=10)
-        input_frame.grid(row=2, column=0, sticky="ew")
+        self.input_frame = tk.Frame(self, bg="lightgray", padx=10, pady=0)
+        self.input_frame.grid(row=2, column=0, sticky="ew")
 
-        input_frame.grid_columnconfigure(0, weight=1)
+        self.input_frame.grid_columnconfigure(0, weight=1)
 
-        self.message_entry = tk.Entry(input_frame, font=("Arial", 12))
+        self.message_entry = tk.Entry(self.input_frame, font=("Arial", 12))
         self.message_entry.grid(row=0, column=0, sticky="ew", padx=(0, 10))
 
-        send_button = tk.Button(input_frame, text="Send", command=self.send_message)
+        send_button = tk.Button(self.input_frame, text="Send", command=self.send_message)
         send_button.grid(row=0, column=1)
 
         self.messages = None

@@ -3,7 +3,7 @@ import tkinter as tk
 class TopBar(tk.Frame):
     def __init__(self, root, controller):
         super().__init__(root, pady=10)
-        self.pack(fill="x")
+        # self.pack(fill="x")  # REMOVE this line to avoid geometry manager conflict
 
         tk.Button(self, text="Main Chat", command=lambda: controller.show_frame("MainChatWindow")).pack(side="left", padx=5)
         tk.Button(self, text="Projects", command=lambda: controller.show_frame("ProjectsWindow")).pack(side="left", padx=5)

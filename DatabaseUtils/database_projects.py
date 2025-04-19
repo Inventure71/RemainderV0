@@ -22,31 +22,42 @@ class ProjectsDatabaseHandler:
                 name TEXT NOT NULL,
                 description TEXT NOT NULL,
                 timestamp TEXT NOT NULL,
-                extra TEXT NOT NULL
+                extra TEXT NOT NULL,
                 user_created INTEGER DEFAULT 0
             )
         """)
         self.conn.commit()
+        # Migration: add 'color' column if it doesn't exist
+        self._migrate_add_color_column()
 
-    def add_project(self, project_name, timestamp, project_description=None, extra=None, user_created=1):
+    def _migrate_add_color_column(self):
+        self.cursor.execute("PRAGMA table_info(projects)")
+        columns = [info[1] for info in self.cursor.fetchall()]
+        if 'color' not in columns:
+            self.cursor.execute("ALTER TABLE projects ADD COLUMN color TEXT DEFAULT '#dddddd'")
+            self.conn.commit()
+
+    def add_project(self, project_name, timestamp, project_description=None, extra=None, user_created=1, color="#dddddd"):
         if project_description is None:
             project_description = ""
 
         if extra is None:
             extra = ""
 
-        self.cursor.execute("INSERT INTO projects (name, description, timestamp, extra, user_created) VALUES (?, ?, ?, ?, ?)",
-                            (project_name, project_description, timestamp, extra, user_created))
+        self.cursor.execute("INSERT INTO projects (name, description, timestamp, extra, user_created, color) VALUES (?, ?, ?, ?, ?, ?)",
+                            (project_name, project_description, timestamp, extra, user_created, color))
 
         self.conn.commit()
 
-    def update_project(self, task_id , new_name=None, new_description=None, user_created=None): # only modifies text
+    def update_project(self, task_id , new_name=None, new_description=None, user_created=None, color=None): # only modifies text
         if new_name:
             self.cursor.execute("UPDATE projects SET name = ? WHERE id = ?", (new_name, task_id))
         if new_description:
             self.cursor.execute("UPDATE projects SET description = ? WHERE id = ?", (new_description, task_id))
-        if user_created:
+        if user_created is not None:
             self.cursor.execute("UPDATE projects SET user_created = ? WHERE id = ?", (user_created, task_id))
+        if color:
+            self.cursor.execute("UPDATE projects SET color = ? WHERE id = ?", (color, task_id))
         self.conn.commit()
 
     def delete_project(self, task_id):
@@ -54,7 +65,7 @@ class ProjectsDatabaseHandler:
         self.conn.commit()
 
     def get_all_projects(self):
-        self.cursor.execute("SELECT id, name, description, timestamp, extra, user_created FROM projects")
+        self.cursor.execute("SELECT id, name, description, timestamp, extra, user_created, color FROM projects")
         rows = self.cursor.fetchall()
         projects = []
 
@@ -65,7 +76,8 @@ class ProjectsDatabaseHandler:
                 "description": row[2],
                 "timestamp": row[3],
                 "extra": row[4],
-                "user_created": row[5]
+                "user_created": row[5],
+                "color": row[6] if row[6] else "#dddddd"
             }
             projects.append(project)
 
