@@ -228,7 +228,7 @@ class WidgetModelChat:
             if "projects" in response_data:
                 for project in response_data["projects"]:
                     if "name" in project and "description" in project:
-                        self.projects_db.add_project(project["name"], time.time(), project["description"])
+                        self.projects_db.add_project(project["name"], time.time(), project["description"], user_created=0)
         except Exception as e:
             print(f"Error parsing response or creating new projects: {e}")
 
