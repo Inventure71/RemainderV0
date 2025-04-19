@@ -148,6 +148,7 @@ class ModelClient:
             )
         )
 
+        # Find messages
         if json == 1:
             generate_content_config = types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -179,6 +180,71 @@ class ModelClient:
                         text=sys_prompt_1),
                 ],
             )
+
+        # assign messages to projects
+        elif json == 2:
+            generate_content_config = types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=genai.types.Schema(
+                    type=genai.types.Type.OBJECT,
+                    properties={
+                        "messages": genai.types.Schema(
+                            type=genai.types.Type.ARRAY,
+                            items=genai.types.Schema(
+                                type=genai.types.Type.OBJECT,
+                                required=["id", "project", "why"],
+                                properties={
+                                    "id": genai.types.Schema(
+                                        type=genai.types.Type.INTEGER,
+                                    ),
+                                    "project": genai.types.Schema(
+                                        type=genai.types.Type.STRING,
+                                    ),
+                                    "why": genai.types.Schema(
+                                        type=genai.types.Type.STRING,
+                                    ),
+                                },
+                            ),
+                        ),
+                    },
+                ),
+                system_instruction=[
+                    types.Part.from_text(
+                        text=sys_prompt_2),
+                ],
+            )
+        
+        # create new projects
+        elif json == 3:
+            generate_content_config = types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=genai.types.Schema(
+                    type=genai.types.Type.OBJECT,
+                    properties={
+                        "messages": genai.types.Schema(
+                            type=genai.types.Type.ARRAY,
+                            items=genai.types.Schema(
+                                type=genai.types.Type.OBJECT,
+                                required=["name", "description"],
+                                properties={
+                                    "name": genai.types.Schema(
+                                        type=genai.types.Type.STRING,
+                                    ),
+                                    "description": genai.types.Schema(
+                                        type=genai.types.Type.STRING,
+                                    ),
+                                },
+                            ),
+                        ),
+                    },
+                ),
+                system_instruction=[
+                    types.Part.from_text(
+                        text=sys_prompt_3),
+                ],
+            )
+
+        
         else:
             generate_content_config = types.GenerateContentConfig(
                 response_mime_type="text/plain",
