@@ -50,7 +50,7 @@ class WidgetModelChat:
             cleared_messages = []
             for message in messages:
                 # only save the content and project of each message
-                cleared_messages.append({"content": message["content"], "project": message["project"]})
+                cleared_messages.append({"id": message["id"], "content": message["content"], "project": message["project"]})
 
 
             print(cleared_messages)
