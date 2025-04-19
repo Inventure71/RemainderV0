@@ -12,6 +12,12 @@ class WidgetModelChat:
         self.model_handler = ModelClient(mode="gemini", model_context_window=500000)
         self.history = None
 
+        # --- Top Button Bar ---
+        top_button_frame = tk.Frame(parent, bg="lightgray", padx=10, pady=5)
+        top_button_frame.grid(row=0, column=10, sticky="ew")
+        process_all_button = tk.Button(top_button_frame, text="Process Messages", command=self.process_all_main_chat_messages)
+        process_all_button.pack(side="left", padx=5)
+
         # --- Scrollable Chat Area ---
         self.scrollable_area = ScrollableMessageArea(parent, db_manager=None)
         self.scrollable_area.grid(row=1, column=10, sticky="nsew")
@@ -136,3 +142,22 @@ class WidgetModelChat:
 
         else:
             print("No text in text field")
+
+    def process_all_main_chat_messages(self):
+        # Get all unprocessed messages from main chat (project=None)
+        unprocessed = self.message_db.get_project_messages(project_name=None, only_unprocessed=True)
+        
+        cleared_messages_str = ""
+        for msg in unprocessed:
+            if msg['project'] == "" or msg['project'] == None:
+                cleared_messages_str += f"ID: {msg['id']}, Content: {msg['content']}\n"
+                self.message_db.update_message(msg["id"], processed=True)
+            else: 
+                print("Skipping project message", msg['project'])
+
+        response, self.history = self.model_handler.generate(prompt="", messages=cleared_messages_str, json=2, history=None)
+        print(response)
+
+        # Optionally, refresh the main chat window if needed
+        if hasattr(self.parent, 'refresh'):
+            self.parent.refresh()

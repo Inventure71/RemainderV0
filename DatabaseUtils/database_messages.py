@@ -21,14 +21,15 @@ class MessageDatabaseHandler:
                 timestamp TEXT NOT NULL,
                 project TEXT,
                 files TEXT,
-                extra TEXT
+                extra TEXT,
+                processed INTEGER DEFAULT 0
             )
         """)
         self.conn.commit()
 
     def add_message(self, message):
-        self.cursor.execute("INSERT INTO messages (content, timestamp, project, files, extra) VALUES (?, ?, ?, ?, ?)",
-                            (message['content'], message['timestamp'], message['project'], message['files'], message['extra']))
+        self.cursor.execute("INSERT INTO messages (content, timestamp, project, files, extra, processed) VALUES (?, ?, ?, ?, ?, ?)",
+                            (message['content'], message['timestamp'], message['project'], message['files'], message['extra'], message.get('processed', False)))
         self.conn.commit()
 
         # Get the last inserted ID
@@ -36,7 +37,7 @@ class MessageDatabaseHandler:
         last_id = self.cursor.fetchone()[0]
         return last_id
 
-    def update_message(self, task_id, content=None, timestamp=None, project=None, files=None, extra=None):
+    def update_message(self, task_id, content=None, timestamp=None, project=None, files=None, extra=None, processed=None):
         """
         Update any component of a message by its ID.
         Only the provided parameters will be updated.
@@ -48,6 +49,7 @@ class MessageDatabaseHandler:
         - project: New project name (optional)
         - files: New files data (optional)
         - extra: New extra data (optional)
+        - processed: New processed value (optional)
         """
         # Start building the update query
         update_parts = []
@@ -74,6 +76,10 @@ class MessageDatabaseHandler:
             update_parts.append("extra = ?")
             values.append(extra)
 
+        if processed is not None:
+            update_parts.append("processed = ?")
+            values.append(int(processed))
+
         # If no updates are provided, just return
         if not update_parts:
             return
@@ -90,15 +96,18 @@ class MessageDatabaseHandler:
         self.cursor.execute("DELETE FROM messages WHERE id = ?", (message_id,))
         self.conn.commit()
 
-    def get_project_messages(self, project_name=None):
-        #self.cursor.execute("SELECT id, content, timestamp, files FROM messages")
+    def get_project_messages(self, project_name=None, only_unprocessed=False):
         # gets all messages if no name is specified
-
         if project_name:
-            self.cursor.execute("SELECT id, content, timestamp, project, files FROM messages WHERE project = ?",
-                                (project_name,))
+            if only_unprocessed:
+                self.cursor.execute("SELECT id, content, timestamp, project, files, processed FROM messages WHERE project = ? AND processed = 0", (project_name,))
+            else:
+                self.cursor.execute("SELECT id, content, timestamp, project, files, processed FROM messages WHERE project = ?", (project_name,))
         else:
-            self.cursor.execute("SELECT id, content, timestamp, project, files FROM messages")
+            if only_unprocessed:
+                self.cursor.execute("SELECT id, content, timestamp, project, files, processed FROM messages WHERE processed = 0")
+            else:
+                self.cursor.execute("SELECT id, content, timestamp, project, files, processed FROM messages")
 
         rows = self.cursor.fetchall()
         messages = []
@@ -108,7 +117,8 @@ class MessageDatabaseHandler:
                 "content": row[1],
                 "timestamp": row[2],
                 "project": row[3],
-                "files": row[4]
+                "files": row[4],
+                "processed": bool(row[5])
             })
         return messages
 
