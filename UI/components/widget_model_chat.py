@@ -10,6 +10,7 @@ class WidgetModelChat:
         self.project = None
         self.message_db = MessageDatabaseHandler()
         self.model_handler = ModelClient(mode="gemini", model_context_window=500000)
+        self.history = None
 
         # --- Scrollable Chat Area ---
         self.scrollable_area = ScrollableMessageArea(parent, db_manager=None)
@@ -27,21 +28,21 @@ class WidgetModelChat:
         send_button = tk.Button(input_frame, text="Send", command=self.send_message_to_model)
         send_button.grid(row=0, column=11)
         # Toggle Buttons
-        self.toggle1_var = tk.BooleanVar(value=False)
+        self.select_messages_toggle_var = tk.BooleanVar(value=False)
         toggle1_button = tk.Checkbutton(
             input_frame,
-            text="Toggle 1",
-            variable=self.toggle1_var,
+            text="Select Message",
+            variable=self.select_messages_toggle_var,
             onvalue=True,
             offvalue=False
         )
         toggle1_button.grid(row=0, column=12, padx=(10, 0))
 
-        self.toggle2_var = tk.BooleanVar(value=False)
+        self.use_history_toggle_var = tk.BooleanVar(value=False)
         toggle2_button = tk.Checkbutton(
             input_frame,
-            text="Toggle 2",
-            variable=self.toggle2_var,
+            text="Use history",
+            variable=self.use_history_toggle_var,
             onvalue=True,
             offvalue=False
         )
@@ -77,10 +78,52 @@ class WidgetModelChat:
 
             print(cleared_messages_str)
 
-            print("implement send message to model")
+            if self.use_history_toggle_var.get():
+                history = self.history
+            else:
+                history = None
 
-            response = self.model_handler.generate(prompt=user_text, messages=cleared_messages_str)
-            self.scrollable_area.add_message(response, message_id=0, assigned_project="")
+            if self.select_messages_toggle_var.get():
+                print("Trying to select messages", f"Using history: {self.use_history_toggle_var.get()}")
+                response, self.history = self.model_handler.generate(prompt=user_text, messages=cleared_messages_str,
+                                                                     json=1, history=history)
+                print(response)
+
+                #self.scrollable_area.add_message(response, message_id=0, assigned_project="")
+
+                # Extract message IDs from the response
+                try:
+                    import json
+                    response_data = json.loads(response)
+
+                    if "messages" in response_data:
+                        # Process each mentioned message
+                        for mentioned_msg in response_data["messages"]:
+                            if "id" in mentioned_msg:
+                                msg_id = mentioned_msg["id"]
+                                reason = mentioned_msg.get("why", "No reason provided")
+
+                                # Find the full message that matches the ID
+                                matching_messages = [msg for msg in messages if msg["id"] == msg_id]
+
+                                if matching_messages:
+                                    message = matching_messages[0]
+                                    # Add each mentioned message to the chat widget with the reason
+                                    self.scrollable_area.add_message(
+                                        f"Referenced message #{msg_id}: {message['content']}\n\nReason: {reason}",
+                                        message_id=msg_id,
+                                        assigned_project=message.get("project", ""),
+                                        alignment="left"
+                                    )
+                except Exception as e:
+                    print(f"Error parsing response or extracting messages: {e}")
+
+
+            else:
+                print("Generic message", f"Using history: {self.use_history_toggle_var.get()}")
+                response, self.history = self.model_handler.generate(prompt=user_text, messages=cleared_messages_str, history=history)
+                self.scrollable_area.add_message(response, message_id=0, assigned_project="")
+
             self.description_entry.delete(0, tk.END)
 
 

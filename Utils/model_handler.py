@@ -84,20 +84,19 @@ class ModelClient:
         # Return list of (messages_chunk, prompt) pairs
         return [(chunk, prompt) for chunk in chunks]
 
-    def generate(self, prompt, messages="", json=False):
+    def generate(self, prompt, messages="", json=0, history=None):
         """
         Generate content, automatically splitting messages+prompt if needed.
         Combines multiple chunk responses into one output.
         """
         # Split into (messages_chunk, prompt) pairs
         pairs = self.handle_length(prompt, messages)
-        history = None
 
-        if json:
+        if json > 0:
             combined_messages = []
             for msg_chunk, prmpt in pairs:
                 if self.mode == "gemini":
-                    resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=1, history=None)
+                    resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
 
                 else:
                     print("Implement mode", self.mode)
