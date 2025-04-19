@@ -1,4 +1,6 @@
+import re
 import tkinter as tk
+import time
 
 from UI.components.scrollable_messages_box import ScrollableMessageArea
 from DatabaseUtils.database_messages import MessageDatabaseHandler
@@ -161,6 +163,8 @@ class WidgetModelChat:
         # If the check_projects toggle is on, run the model with json=3 to check for new projects first
         if self.check_projects_toggle_var.get():
             self._check_for_new_projects()
+            print("Skipping message processing as new projects were checked.")
+            return
         
         # Proceed as before
         # Get all unprocessed messages from main chat (project=None)
@@ -211,7 +215,7 @@ class WidgetModelChat:
             project_contexts.append(f"Project: {project_name}\nDescription: {project_desc}\nFirst 5 Messages Of Project:\n{first_5_str}")
         projects_prompt = "\n\n".join(project_contexts)
         cleared_messages_str = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}" for msg in unprocessed if msg['project'] == "" or msg['project'] is None])
-        prompt = f"PROJECTS CONTEXT:\n{projects_prompt}\n\nMESSAGES TO CHECK FOR PROJECTS:\n{cleared_messages_str}"
+        prompt = f"Already existing projects and some messages in them:\n{projects_prompt}\n\nMessages with no project yet:\n{cleared_messages_str}"
         print("Checking for new projects with prompt:", prompt)
 
         response, _ = self.model_handler.generate(prompt=prompt, messages=cleared_messages_str, json=3, history=None)
@@ -224,7 +228,7 @@ class WidgetModelChat:
             if "projects" in response_data:
                 for project in response_data["projects"]:
                     if "name" in project and "description" in project:
-                        self.projects_db.add_project(name=project["name"], description=project["description"])
+                        self.projects_db.add_project(project["name"], time.time(), project["description"])
         except Exception as e:
             print(f"Error parsing response or creating new projects: {e}")
 

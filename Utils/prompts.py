@@ -25,9 +25,12 @@ For each message that you assign, specify:
 
 sys_prompt_3 = """
 Your given context: a list of projects, their description and the first 5 messages of each project.
-Your input: a list of messages from the main chat.
+Your input: A list of messages that are not part of a project yet.
 
-Your task: Understand if any messages could be organized in collections that are yet not present, for each new collection specify:
-1) Name, the name of the collection
-2) Description, a short description of the collection (max 200 words)
+Your task: Understand if any messages could be organized in projects (collections) that don't exist yet, for each new project that should be created specify:
+1) Name, the name of the project
+2) Description, a short description of the project (max 200 words)
+
+each project is a collection of messages that are related to each other in someway.
+return a list of projects, es: [projects: [{"name": "Project Name", "description": "Project Description"}]]
 """

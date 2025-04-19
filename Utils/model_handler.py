@@ -4,7 +4,7 @@ from google import genai
 from google.genai import types
 import json as _json
 
-from Utils.prompts import sys_prompt_0, sys_prompt_1, sys_prompt_2
+from Utils.prompts import sys_prompt_0, sys_prompt_1, sys_prompt_2, sys_prompt_3
 
 
 class ModelClient:
@@ -93,19 +93,61 @@ class ModelClient:
         pairs = self.handle_length(prompt, messages)
 
         if json > 0:
-            combined_messages = []
-            for msg_chunk, prmpt in pairs:
-                if self.mode == "gemini":
-                    resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
+            if json == 3:  # Project creation
+                combined_projects = []
+                for msg_chunk, prmpt in pairs:
+                    if self.mode == "gemini":
+                        resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
+                    else:
+                        print("Implement mode", self.mode)
+                        raise ValueError("Invalid mode")
 
-                else:
-                    print("Implement mode", self.mode)
-                    raise ValueError("Invalid mode")
+                    data = _json.loads(resp_text)
+                    combined_projects.extend(data.get("projects", []))
+                combined = {"projects": combined_projects}
+                return _json.dumps(combined), history
+            else:  # Other JSON responses (messages)
+                combined_messages = []
+                for msg_chunk, prmpt in pairs:
+                    if self.mode == "gemini":
+                        resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
+                    else:
+                        print("Implement mode", self.mode)
+                        raise ValueError("Invalid mode")
 
-                data = _json.loads(resp_text)
-                combined_messages.extend(data.get("messages", []))
-            combined = {"messages": combined_messages}
-            return _json.dumps(combined), history
+                    data = _json.loads(resp_text)
+                    combined_messages.extend(data.get("messages", []))
+                combined = {"messages": combined_messages}
+                return _json.dumps(combined), history
+        pairs = self.handle_length(prompt, messages)
+
+        if json > 0:
+            if json == 3:  # Project creation
+                combined_projects = []
+                for msg_chunk, prmpt in pairs:
+                    if self.mode == "gemini":
+                        resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
+                    else:
+                        print("Implement mode", self.mode)
+                        raise ValueError("Invalid mode")
+
+                    data = _json.loads(resp_text)
+                    combined_projects.extend(data.get("projects", []))
+                combined = {"projects": combined_projects}
+                return _json.dumps(combined), history
+            else:  # Other JSON responses (messages)
+                combined_messages = []
+                for msg_chunk, prmpt in pairs:
+                    if self.mode == "gemini":
+                        resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
+                    else:
+                        print("Implement mode", self.mode)
+                        raise ValueError("Invalid mode")
+
+                    data = _json.loads(resp_text)
+                    combined_messages.extend(data.get("messages", []))
+                combined = {"messages": combined_messages}
+                return _json.dumps(combined), history
         else:
             responses = []
             for idx, (msg_chunk, prmpt) in enumerate(pairs, start=1):
@@ -148,7 +190,9 @@ class ModelClient:
             )
         )
 
-        # Find messages
+        print("Generating content with prompt:", prompt)
+
+        # find messages
         if json == 1:
             generate_content_config = types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -216,12 +260,13 @@ class ModelClient:
         
         # create new projects
         elif json == 3:
+            print("Creating new projects")
             generate_content_config = types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=genai.types.Schema(
                     type=genai.types.Type.OBJECT,
                     properties={
-                        "messages": genai.types.Schema(
+                        "projects": genai.types.Schema(
                             type=genai.types.Type.ARRAY,
                             items=genai.types.Schema(
                                 type=genai.types.Type.OBJECT,

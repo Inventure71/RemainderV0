@@ -8,6 +8,17 @@ from UI.window_main_chat import MainChatWindow
 # --- App Setup ---
 class App(tk.Tk):
     def __init__(self):
+        """
+        Initialize the main application window.
+
+        The main window is setup with a title of "Remainder" and a size of 1080x720.
+        A container frame is created to stack pages and is packed to fill the window.
+        The container frame is configured to expand in both the x and y directions.
+
+        The frames dictionary is created to store pages by name.
+        Each page is created and packed into the container frame.
+        The show_frame method is then called to raise the MainChatWindow frame to the top.
+        """
         super().__init__()
 
         self.title("Remainder")
