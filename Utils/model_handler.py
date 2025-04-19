@@ -209,4 +209,4 @@ class ModelClient:
         return response, history
 
 if __name__ == "__main__":
-    generate()
+    None

@@ -21,9 +21,27 @@ class ScrollableMessageArea(tk.Frame):
 
         # Auto-resize scroll region
         self.inner_frame.bind("<Configure>", self.on_frame_configure)
+        # Enable mousewheel (and trackpad) scrolling
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind_all("<Button-4>", lambda e: self.canvas.yview_scroll(-1, "units"))
+        self.canvas.bind_all("<Button-5>", lambda e: self.canvas.yview_scroll(1, "units"))
 
     def on_frame_configure(self, event):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _on_mousewheel(self, event):
+        """
+        Scroll the canvas vertically in response to mouse wheel events.
+        Handles Windows/Mac (MouseWheel) and adjusts delta accordingly.
+        """
+        # Handle scrolling: Windows gives delta in multiples of 120, Mac trackpad yields small values
+        if event.delta:
+            if abs(event.delta) >= 120:
+                scroll_amount = -int(event.delta / 120)
+            else:
+                # Small delta from trackpad, normalize to one unit per scroll
+                scroll_amount = -1 if event.delta > 0 else 1
+            self.canvas.yview_scroll(scroll_amount, "units")
 
     def add_message(self, text, message_id=0, assigned_project=None, project_list=None, alignment="left"):
         """
