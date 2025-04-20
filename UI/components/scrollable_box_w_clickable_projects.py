@@ -43,11 +43,19 @@ class ScrollableBox(tk.Frame):
                 row = i // self.columns
                 col = i % self.columns
 
-                box = tk.Frame(self.scrollable_frame, borderwidth=2, relief="raised",
-                               bg="#dddddd", padx=10, pady=10)
+                # Determine box color and outline
+                box_color = project.get("color", "#dddddd")
+                # Use a special outline color for non-user-created projects
+                if not project.get("user_created", 0):
+                    highlight_color = "#FF5733"  # Example: bright orange outline
+                else:
+                    highlight_color = "#228B22"  # Example: green outline
+
+                box = tk.Frame(self.scrollable_frame, borderwidth=3, relief="raised",
+                               bg=box_color, highlightbackground=highlight_color, highlightcolor=highlight_color, highlightthickness=3, padx=10, pady=10)
                 box.grid(row=row, column=col, padx=10, pady=5, sticky="nw")
 
-                label = tk.Label(box, text=project["name"][:3].upper(), bg="#dddddd")
+                label = tk.Label(box, text=project["name"][:3].upper(), bg=box_color)
                 label.pack()
 
                 box.bind("<Button-1>", lambda e, idx=i: self.on_click(idx, self.on_click_callback))

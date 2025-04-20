@@ -163,8 +163,6 @@ class WidgetModelChat:
         # If the check_projects toggle is on, run the model with json=3 to check for new projects first
         if self.check_projects_toggle_var.get():
             self._check_for_new_projects()
-            print("Skipping message processing as new projects were checked.")
-            return
         
         # Proceed as before
         # Get all unprocessed messages from main chat (project=None)

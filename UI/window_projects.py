@@ -39,6 +39,12 @@ class ProjectsWindow(tk.Frame):
         self.new_project_entry = tk.Entry(input_frame, width=30)
         self.new_project_entry.pack(side="left", padx=5)
 
+        # Color picker for project color
+        tk.Label(input_frame, text="Color:", bg="lightgray").pack(side="left", padx=5)
+        self.color_entry = tk.Entry(input_frame, width=10)
+        self.color_entry.insert(0, "#dddddd")
+        self.color_entry.pack(side="left", padx=5)
+
         create_button = tk.Button(input_frame, text="Create Project",
                                   command=self.create_new_project_from_entry)
         create_button.pack(side="left", padx=5)
@@ -64,8 +70,12 @@ class ProjectsWindow(tk.Frame):
         self.refresh()
 
     def create_new_project_from_entry(self):
-        project_name = self.new_project_entry.get().strip()
-        if project_name:
-            self.create_new_project(project_name)
-            self.new_project_entry.delete(0, tk.END)  # Clear the entry field
-            # You might want to refresh the project list here
+        name = self.new_project_entry.get().strip()
+        color = self.color_entry.get().strip()
+        if name:
+            timestamp = str(int(time.time()))
+            self.p_database.add_project(name, timestamp, color=color, user_created=1)
+            self.refresh()
+            self.new_project_entry.delete(0, 'end')
+            self.color_entry.delete(0, 'end')
+            self.color_entry.insert(0, "#dddddd")
