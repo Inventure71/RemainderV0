@@ -16,11 +16,12 @@ Your given context: a list of projects, their description and the first 5 messag
 Your input: a list of messages from the main chat.
 
 Your task: process the messages of the main chat, assign them to the appropriate projects, if the message does not correspond to any project precisely, assign it to the empty project "" or leave them out of your response.
+Be sure that a message is part of a project only if it is part of the project, otherwise leave it out of your response.
 
 For each message that you assign, specify:
 1) id, the id of the message
 2) project, the name of the project
-3) why, justify why the message is assigned to this project (max 10 words)
+3) why, justify why the message is assigned to this project (max 15 words)
 """
 
 sys_prompt_3 = """
