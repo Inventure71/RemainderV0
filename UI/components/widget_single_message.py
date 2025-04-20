@@ -55,7 +55,7 @@ class MessageBox(tk.Frame):
         self.message_label = tk.Label(
             content_frame,
             text=text,
-            wraplength=450,  # Slightly reduced to allow space for right-side controls
+            wraplength=300,  # Reduced to make the model chat narrower
             justify="left",
             anchor="w",
             foreground="black",
