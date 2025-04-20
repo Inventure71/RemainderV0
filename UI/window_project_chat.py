@@ -20,26 +20,34 @@ class ProjectChatWindow(MainChatWindow):
         # This sets up the basic 2-column grid, TopBar, input_frame, model_chat etc.
         super().__init__(parent, controller)
 
+        # --- Create a container frame for the left side content ---
+        self.left_container = tk.Frame(self)
+        self.left_container.grid(row=1, column=0, rowspan=2, sticky="nsew")
+
+        # Configure the left container to have two rows
+        self.left_container.grid_rowconfigure(0, weight=0)  # Info frame - no vertical stretch
+        self.left_container.grid_rowconfigure(1, weight=1)  # Chat area - allow vertical stretch
+        self.left_container.grid_columnconfigure(0, weight=1)  # Full width
+
         # --- Configure Grid Rows for THIS Window's Layout ---
         # Row 0: TopBar (handled by parent)
-        # Row 1: Project Info Bar (in column 0)
-        # Row 2: Project Chat Area (in column 0)
-        # Row 3: Input Bar (in column 0)
-        # Column 0: Left side content (Info, Chat, Input)
+        # Row 1: Left container (contains info frame and chat area)
+        # Row 2: Input Bar
+        # Column 0: Left side content
         # Column 10: Right side content (Model Chat - handled by parent)
 
-        self.grid_rowconfigure(1, weight=0)  # Info bar - no vertical stretch
-        self.grid_rowconfigure(2, weight=1)  # Project chat - allow vertical stretch
-        self.grid_rowconfigure(3, weight=0)  # Input bar - no vertical stretch
+        self.grid_rowconfigure(1, weight=1)  # Left container - allow vertical stretch
+        self.grid_rowconfigure(2, weight=0)  # Input bar - no vertical stretch
         # Column weights (0 and 10) are already set by the parent
 
         # --- Project Info Bar ---
-        # Placed in row 1, only in the left column (column 0)
-        self.info_frame = tk.Frame(self, bg="#f4f4f4", pady=4) # Reduced padding slightly
-        self.info_frame.grid(row=1, column=0, sticky="ew")
+        # Placed in row 0 of the left container
+        self.info_frame = tk.Frame(self.left_container, bg="#f4f4f4", pady=4)
+        self.info_frame.grid(row=0, column=0, sticky="ew")
+
         # Configure columns *within* the info_frame
-        self.info_frame.columnconfigure(0, weight=1) # Spacer
-        self.info_frame.columnconfigure(1, weight=1) # Description label column
+        self.info_frame.columnconfigure(0, weight=1)  # Description label column
+        self.info_frame.columnconfigure(1, weight=0)  # Buttons column - no horizontal stretch
 
         self.desc_label = tk.Label(
             self.info_frame,
@@ -49,64 +57,71 @@ class ProjectChatWindow(MainChatWindow):
             justify="left",
             wraplength=1  # Real value set on resize
         )
-        self.desc_label.grid(row=0, column=1, sticky="ew", pady=0)
+        self.desc_label.grid(row=0, column=0, sticky="ew", pady=0)
+
+        # Create a frame for buttons to keep them together
+        self.button_frame = tk.Frame(self.info_frame, bg="#f4f4f4")
+        self.button_frame.grid(row=0, column=1, sticky="e")
+
+        self.edit_desc_btn = tk.Button(self.button_frame, text="Edit Description", command=self.edit_description)
+        self.edit_desc_btn.pack(side="left", padx=5)
+
+        self.edit_color_btn = tk.Button(self.button_frame, text="Edit Color", command=self.edit_color)
+        self.edit_color_btn.pack(side="left", padx=5)
 
         # Bind resize event to the main window frame for better wrap updates
         self.bind("<Configure>", self._update_desc_wrap)
         # Initial wrap update after widgets are drawn
         self.after_idle(self._update_desc_wrap)
 
-        self.edit_desc_btn = tk.Button(self.info_frame, text="Edit Description", command=self.edit_description)
-        self.edit_desc_btn.grid(row=0, column=2, sticky="e", padx=5, pady=0)
-
-        self.edit_color_btn = tk.Button(self.info_frame, text="Edit Color", command=self.edit_color)
-        self.edit_color_btn.grid(row=0, column=3, sticky="e", padx=5, pady=0)
-
         # --- Project Chat Area ---
         # Will be populated by populate_chat_area, which now correctly grids it
-        # at row=2, column=0. Need to ensure self.scrollable_area is managed.
-        # self.scrollable_area = None # Initialize perhaps
+        # at row=1 of the left container
 
         # --- Input Bar ---
         # Re-grid the input_frame created by the parent class to the correct row
-        self.input_frame.grid(row=3, column=0, sticky="ew") # Moved to row 3
+        self.input_frame.grid(row=2, column=0, sticky="ew")
 
         # --- Initial State ---
         self.update_project_info()
         # Populate chat based on current project (might be None initially)
+        # This will now work correctly since left_container exists
         self.change_project(self.project_dictionary)
 
 
     def _update_desc_wrap(self, event=None):
         """
         Adjust the description label’s wrap length based on available space
-        in the info_frame, accounting for buttons.
+        in the info_frame, accounting for the button frame.
         """
-        if not self.info_frame.winfo_exists(): # Prevent errors during teardown
+        if not hasattr(self, "info_frame") or not self.info_frame.winfo_exists(): # Prevent errors during initialization or teardown
              return
         # Wait for widgets inside info_frame to get their size
         self.info_frame.update_idletasks()
-        button_width = 0
-        if self.edit_desc_btn.winfo_exists():
-            button_width += self.edit_desc_btn.winfo_width()
-        if self.edit_color_btn.winfo_exists():
-            button_width += self.edit_color_btn.winfo_width()
 
-        # Estimate padding and spacing around buttons
-        button_padding = 30 # Adjust as needed
-
+        # With the new layout, we can simply use the width of the description label's cell
         # Calculate available width for the description label
-        available_width = self.info_frame.winfo_width() - button_width - button_padding
+        available_width = self.info_frame.winfo_width()
+
+        # If button_frame exists and is visible, subtract its width
+        if hasattr(self, 'button_frame') and self.button_frame.winfo_exists():
+            button_frame_width = self.button_frame.winfo_width()
+            # Add some padding
+            button_padding = 20
+            available_width -= (button_frame_width + button_padding)
+
         # Ensure a minimum width to avoid errors or extreme wrapping
-        available_width = max(available_width, 50)
+        available_width = max(available_width, 100)
 
         self.desc_label.config(wraplength=available_width)
 
     def refresh(self):
         # When refreshing, ensure the correct project's data is shown
-        self.change_project(self.project_dictionary) # Reload messages for current project
-        if hasattr(self, "desc_label"): # Ensure UI elements exist
-            self.update_project_info()
+        # Only proceed if we have the necessary UI components
+        if hasattr(self, "left_container"):
+            self.change_project(self.project_dictionary) # Reload messages for current project
+            if hasattr(self, "desc_label"): # Ensure UI elements exist
+                self.update_project_info()
         # The parent refresh might load main chat messages, which we don't want displayed here.
         # self.populate_chat_area handles displaying the correct project messages.
 
@@ -127,14 +142,18 @@ class ProjectChatWindow(MainChatWindow):
         # Fetch and display messages for the *new* project
         if project_dictionary:
             self.messages = self.message_db.get_project_messages(self.project_dictionary["name"])
-            self.populate_chat_area(self.messages)
+            # Only populate chat area if we have the necessary UI components
+            if hasattr(self, "left_container"):
+                self.populate_chat_area(self.messages)
         else:
             # Handle case where no project is selected (e.g., show a placeholder)
             self.messages = []
-            self.populate_chat_area(self.messages) # Show empty or placeholder
+            # Only populate chat area if we have the necessary UI components
+            if hasattr(self, "left_container"):
+                self.populate_chat_area(self.messages) # Show empty or placeholder
 
         # Update the info bar for the new project
-        if hasattr(self, "desc_label"): # Check if UI elements are created
+        if hasattr(self, "desc_label") and hasattr(self, "info_frame"): # Check if UI elements are created
             self.update_project_info()
 
     def populate_chat_area(self, messages):
@@ -143,10 +162,18 @@ class ProjectChatWindow(MainChatWindow):
         if hasattr(self, 'scrollable_area') and self.scrollable_area.winfo_exists():
             self.scrollable_area.destroy()
 
+        # Check if left_container exists yet (it might not during initial parent.__init__)
+        if not hasattr(self, 'left_container'):
+            # During initial setup, use self as parent temporarily
+            # This will be replaced once left_container is created
+            self.scrollable_area = ScrollableMessageArea(self, db_manager=self.message_db)
+            self.scrollable_area.grid(row=1, column=0, sticky="nsew")
+            return  # Exit early, we'll repopulate after full initialization
+
         # Create and grid the scrollable area specifically for project chat
-        self.scrollable_area = ScrollableMessageArea(self, db_manager=self.message_db)
-        # *** Grid it in the correct row/column for ProjectChatWindow ***
-        self.scrollable_area.grid(row=2, column=0, sticky="nsew")
+        # Now place it in the left_container at row 1
+        self.scrollable_area = ScrollableMessageArea(self.left_container, db_manager=self.message_db)
+        self.scrollable_area.grid(row=1, column=0, sticky="nsew")
 
         # Populate with messages or placeholder
         if self.project_dictionary and messages:
@@ -174,7 +201,7 @@ class ProjectChatWindow(MainChatWindow):
 
     def update_project_info(self):
         # Guard against calls before UI elements are ready
-        if not hasattr(self, "desc_label") or not self.desc_label.winfo_exists():
+        if not hasattr(self, "desc_label") or not hasattr(self, "info_frame") or not self.desc_label.winfo_exists():
             return
         if self.project_dictionary:
             desc = self.project_dictionary.get("description", "No description provided.")
