@@ -1,13 +1,12 @@
-import time
 import tkinter as tk
 from datetime import datetime
 
-from UI.components.widget_model_chat import WidgetModelChat
+from UI.widget_model_chat import WidgetModelChat
 from UI.components.widget_top_nav_bar import TopBar
 from UI.components.scrollable_messages_box import ScrollableMessageArea
 
 from DatabaseUtils.database_messages import MessageDatabaseHandler
-from DatabaseUtils.database_projects import ProjectsDatabaseHandler
+
 
 class MainChatWindow(tk.Frame):
     def __init__(self, parent, controller):

@@ -26,10 +26,12 @@ For each message that you assign, specify:
 
 For each message also you have an optional feature that is independent from the previous task, you need to identify if the message should be reminded to the user, some messages such as "Search for max Verstappen clothes" might not contain express indications to be reminded, in these cases set the remind date to 23:00 of the current day. 
 The extra parameters that can be filled in this task are:
-1) when, when does the message need to be reminded, use year-month-day-hour-minute format, es: 2005-10-31-14:25 another example 2025-01-02-23:00
-2) importance, from a scale from 1 to 10 how important it is to remember, where 1 is almost irrelevant and 10 is extremely time sensitive, if the user specify a time or day give a number equal or higher than 8, if indecisive give a 7
+1) id, the id of the message
+2) when, when does the message need to be reminded, use year-month-day-hour-minute format, es: 2005-10-31-14:25 another example 2025-01-02-23:00
+3) importance, from a scale from 1 to 10 how important it is to remember, where 1 is almost irrelevant and 10 is extremely time sensitive, if the user specify a time or day give a number equal or higher than 8, if indecisive give a 7
 If the message doesn't need to be reminded then omit the extra fields or give an importance 0
 
+If the message is both in task one and task 2 only specify ID once.
 Note that this second task is independent from the task of identifying the projects, a message might need to be reminded and not needing to be inserted in any project, the opposite, both or neither. 
 """
 
