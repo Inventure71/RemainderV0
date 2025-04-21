@@ -249,7 +249,8 @@ class WidgetModelChat:
             msg_id_str = str(msg["id"])
 
             if msg_id_str in response_by_id:
-                new_project = response_by_id[msg_id_str].get("project", msg.get("project"))
+                new_project = response_by_id[msg_id_str].get("project", None) #get("project", msg.get("project"))
                 self.message_db.update_message(msg["id"], processed=True, project=new_project)
+
             else:
                 self.message_db.update_message(msg["id"], processed=True)
