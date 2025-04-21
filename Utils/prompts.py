@@ -1,17 +1,19 @@
 
 
-
-sys_prompt_0 = """
+# 0
+sys_prompt_answer_question = """
 You are given a list of messages, your goal is to answer the query from the user in the most relevant way using them as source. Do not list all the messages unless requested to do so. Give short and concise answers. At the end of the message cite the used messages by writing a python list with their IDs, es: [1,14,33].
 """
 
-sys_prompt_1 = """You are given a list of messages, list the messages that might correspond to the user query, for each message specify:
+# 1
+sys_prompt_select_messages = """You are given a list of messages, list the messages that might correspond to the user query, for each message specify:
 1) id, the id of the message
 2) content, the content of the message (only the first 30 words)
 3) why, justify why the message is included
 """
 
-sys_prompt_2 = """
+# 2
+sys_prompt_select_projects = """
 Your given context: a list of projects, their description and the first 5 messages of each project.
 Your input: a list of messages from the main chat.
 
@@ -21,9 +23,18 @@ For each message that you assign, specify:
 1) id, the id of the message
 2) project, the name of the project
 3) why, justify why the message is assigned to this project (max 10 words)
+
+For each message also you have an optional feature that is independent from the previous task, you need to identify if the message should be reminded to the user, some messages such as "Search for max Verstappen clothes" might not contain express indications to be reminded, in these cases set the remind date to 23:00 of the current day. 
+The extra parameters that can be filled in this task are:
+1) when, when does the message need to be reminded, use year-month-day-hour-minute format, es: 2005-10-31-14:25 another example 2025-01-02-23:00
+2) importance, from a scale from 1 to 10 how important it is to remember, where 1 is almost irrelevant and 10 is extremely time sensitive, if the user specify a time or day give a number equal or higher than 8, if indecisive give a 7
+If the message doesn't need to be reminded then omit the extra fields or give an importance 0
+
+Note that this second task is independent from the task of identifying the projects, a message might need to be reminded and not needing to be inserted in any project, the opposite, both or neither. 
 """
 
-sys_prompt_3 = """
+# 3
+sys_prompt_create_projects = """
 Your given context: a list of projects, their description and the first 5 messages of each project.
 Your input: A list of messages that are not part of a project yet.
 
@@ -34,3 +45,5 @@ Your task: Understand if any messages could be organized in projects (collection
 each project is a collection of messages that are related to each other in someway.
 return a list of projects, es: [projects: [{"name": "Project Name", "description": "Project Description"}]]
 """
+
+# 4

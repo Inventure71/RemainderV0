@@ -1,4 +1,3 @@
-import time
 import tkinter as tk
 from tkinter import simpledialog, colorchooser
 # Remove TopBar import here, it's handled by the parent

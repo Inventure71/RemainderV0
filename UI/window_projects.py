@@ -1,5 +1,6 @@
 import time
 import tkinter as tk
+from datetime import datetime
 
 from UI.components.scrollable_box_w_clickable_projects import ScrollableBox
 from UI.components.widget_top_nav_bar import TopBar
@@ -66,14 +67,14 @@ class ProjectsWindow(tk.Frame):
         self.controller.select_project(self.projects[index])
 
     def create_new_project(self, project_name):
-        self.p_database.add_project(project_name, time.time())
+        self.p_database.add_project(project_name, datetime.now())
         self.refresh()
 
     def create_new_project_from_entry(self):
         name = self.new_project_entry.get().strip()
         color = self.color_entry.get().strip()
         if name:
-            timestamp = str(int(time.time()))
+            timestamp = str(datetime.now())
             self.p_database.add_project(name, timestamp, color=color, user_created=1)
             self.refresh()
             self.new_project_entry.delete(0, 'end')

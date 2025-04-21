@@ -4,7 +4,7 @@ from google import genai
 from google.genai import types
 import json as _json
 
-from Utils.prompts import sys_prompt_0, sys_prompt_1, sys_prompt_2, sys_prompt_3
+from Utils.prompts import sys_prompt_answer_question, sys_prompt_create_projects, sys_prompt_select_projects, sys_prompt_select_messages
 
 
 class ModelClient:
@@ -221,7 +221,7 @@ class ModelClient:
                 ),
                 system_instruction=[
                     types.Part.from_text(
-                        text=sys_prompt_1),
+                        text=sys_prompt_select_messages),
                 ],
             )
 
@@ -247,6 +247,12 @@ class ModelClient:
                                     "why": genai.types.Schema(
                                         type=genai.types.Type.STRING,
                                     ),
+                                    "when": genai.types.Schema(
+                                        type=genai.types.Type.STRING,
+                                    ),
+                                    "importance": genai.types.Schema(
+                                        type=genai.types.Type.STRING,
+                                    ),
                                 },
                             ),
                         ),
@@ -254,7 +260,7 @@ class ModelClient:
                 ),
                 system_instruction=[
                     types.Part.from_text(
-                        text=sys_prompt_2),
+                        text=sys_prompt_select_projects),
                 ],
             )
         
@@ -285,7 +291,7 @@ class ModelClient:
                 ),
                 system_instruction=[
                     types.Part.from_text(
-                        text=sys_prompt_3),
+                        text=sys_prompt_create_projects),
                 ],
             )
 
@@ -295,7 +301,7 @@ class ModelClient:
                 response_mime_type="text/plain",
                 system_instruction=[
                     types.Part.from_text(
-                        text=sys_prompt_0),
+                        text=sys_prompt_answer_question),
                 ],
             )
 

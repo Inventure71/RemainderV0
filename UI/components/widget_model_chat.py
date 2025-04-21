@@ -1,6 +1,7 @@
 import re
 import tkinter as tk
 import time
+from datetime import datetime
 
 from UI.components.scrollable_messages_box import ScrollableMessageArea
 from DatabaseUtils.database_messages import MessageDatabaseHandler
@@ -226,7 +227,7 @@ class WidgetModelChat:
             if "projects" in response_data:
                 for project in response_data["projects"]:
                     if "name" in project and "description" in project:
-                        self.projects_db.add_project(project["name"], time.time(), project["description"], user_created=0)
+                        self.projects_db.add_project(project["name"], datetime.now(), project["description"], user_created=0)
         except Exception as e:
             print(f"Error parsing response or creating new projects: {e}")
 
