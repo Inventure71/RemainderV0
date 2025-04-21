@@ -30,7 +30,7 @@ class MessageDatabaseHandler:
         self.conn.commit()
 
     def add_message(self, message):
-        self.cursor.execute("INSERT INTO messages (content, timestamp, project, files, extra, processed, remind, importance) VALUES (?, ?, ?, ?, ?, ?)",
+        self.cursor.execute("INSERT INTO messages (content, timestamp, project, files, extra, processed, remind, importance) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                             (message['content'], message['timestamp'], message['project'], message['files'], message['extra'], message['remind'], message['importance'], message.get('processed', False)))
         self.conn.commit()
 

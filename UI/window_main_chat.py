@@ -54,7 +54,7 @@ class MainChatWindow(tk.Frame):
     def send_message(self, project_name=None):
         text = self.message_entry.get().strip()
         if text:
-            index = self.message_db.add_message({'content': text, 'project': project_name, 'timestamp': datetime.now(), 'files': None, 'extra': None})
+            index = self.message_db.add_message({'content': text, 'project': project_name, 'timestamp': datetime.now(), 'files': None, 'extra': None, 'remind':None, 'importance':None})
             self.scrollable_area.add_message(text, message_id=index, assigned_project=project_name)
             self.message_entry.delete(0, tk.END)
 
