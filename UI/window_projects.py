@@ -17,9 +17,9 @@ class ProjectsWindow(tk.Frame):
         self.controller = controller
         self.projects = None # initialize the variable
 
-        # Create the top bar
-        TopBar(self, controller)
 
+        # Create the top bar
+        TopBar(self, controller).pack(side="top", padx=5)
         tk.Label(self, text="Projects").pack(side="top", padx=5)
 
         # --- Top Frame: Category Selector ---
