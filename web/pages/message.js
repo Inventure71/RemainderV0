@@ -67,6 +67,13 @@ export class Message {
     const projectSublist = li.querySelector('.project-sublist');
     let projectsLoaded = false;
 
+    // Shift the pop‑out menu slightly upward for better positioning
+    const popoutMenu = menuContainer.querySelector('.popout-menu');
+    if (popoutMenu) {
+      // Negative margin moves the submenu up; adjust the value to taste
+      popoutMenu.style.marginTop = '-15px';
+    }
+
     // Edit and delete actions
     editItem.addEventListener('click', e => { e.stopPropagation(); window.actions.editMessageWithProject(this.id, this.project||''); });
     deleteItem.addEventListener('click', e => { e.stopPropagation(); window.actions.deleteMessage(this.id); });
@@ -79,7 +86,17 @@ export class Message {
             const item = document.createElement('li');
             item.textContent = proj.name;
             item.tabIndex = 0;
-            item.addEventListener('click', evt => { evt.stopPropagation(); window.actions.changeProject(this.id, proj.name); });
+            item.addEventListener('click', evt => {
+              evt.stopPropagation();
+              window.actions.changeProject(this.id, proj.name);
+              // update the project bubble immediately for UX
+              const projBubble = li.querySelector('.project-bubble');
+              if (projBubble) {
+                projBubble.textContent = proj.name;
+                projBubble.style.background = proj.color;
+                projBubble.style.color = getContrast(proj.color);
+              }
+            });
             projectSublist.appendChild(item);
           });
           projectsLoaded = true;

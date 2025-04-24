@@ -311,7 +311,9 @@ textarea, input[type="text"], input[type="color"] {
 }
 .popout-menu {
   position: absolute;
-  top: 24px;
+  /* position so the top corner is exactly over the 3 dots */
+  top: calc(100% + 4px);
+  bottom: auto;
   right: 0;
   min-width: 160px;
   background: #23272e;
@@ -319,7 +321,7 @@ textarea, input[type="text"], input[type="color"] {
   box-shadow: 0 4px 16px #0005;
   padding: 0.3em 0;
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(0);
   transition: opacity 0.15s, transform 0.15s;
   pointer-events: none;
 }

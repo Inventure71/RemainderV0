@@ -9,11 +9,14 @@ const app = document.getElementById('app');
 let selectedProject = null;
 
 const nav = {
-  mainChat:    () => renderMainChat(app, api),
+  mainChat:    () => { selectedProject = null; window.selectedProject = null; renderMainChat(app, api); },
   projects:    () => renderProjects(app, api, proj => { selectedProject = proj; window.selectedProject = proj; nav.projectChat(proj); }),
   projectChat: proj => { window.selectedProject = proj; renderProjectChat(app, api, proj); },
   modelChat:   () => { app.innerHTML = '<h2>Model Chat</h2><p>Coming soon…</p>'; }
 };
+
+// Expose navigation globally so subcomponents can call nav properly
+window.nav = nav;
 
 window.actions = {
   editMessage: (id, project) => {
@@ -33,7 +36,12 @@ window.actions = {
   deleteMessage: id => {
     if (!confirm('Delete this message?')) return;
     api.delete_message(id)
-      .then(() => window.selectedProject ? nav.projectChat(window.selectedProject) : nav.mainChat());
+      .then(() => {
+        // Remove the message element without navigation
+        const li = document.querySelector(`li[data-msg-id="${id}"]`);
+        if (li) li.remove();
+      })
+      .catch(e => showNotification(`Failed to delete message: ${e.message || e}`));
   },
   markProcessed: (id, processed) => {
     api.mark_message_processed(id, processed)

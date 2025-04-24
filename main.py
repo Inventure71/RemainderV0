@@ -91,6 +91,20 @@ class Api:
             db.close()
         return messages
 
+    def get_all_reminders(self):
+        db = MessageDatabaseHandler()
+        try:
+            messages = db.get_project_messages()
+            reminders = [m for m in messages if m.get('remind')]
+        except Exception as e:
+            import traceback
+            print("[Error] get_all_reminders failed:", e)
+            print(traceback.format_exc())
+            reminders = []
+        finally:
+            db.close()
+        return reminders
+
     def add_project(self, name, description, color="#dddddd"):
         from datetime import datetime
         db = ProjectsDatabaseHandler()
@@ -150,6 +164,26 @@ class Api:
     def model_chat(self, prompt, use_history=False, project=None):
         # TODO: Integrate with your model handler
         return {'response': 'Model response (not implemented)'}
+
+    def api_route(self, path):
+        # Simple routing for web API
+        from flask import request, jsonify
+        if path == '/api/get_all_reminders':
+            return jsonify(self.get_all_reminders())
+        if path == '/api/edit_message':
+            data = request.json
+            return jsonify(self.edit_message(
+                data['message_id'],
+                project=data.get('project'),
+                remind=data.get('remind'),
+                importance=data.get('importance'),
+                processed=data.get('processed'),
+                content=data.get('content'),
+                reoccurences=data.get('reoccurences')
+            ))
+        # ... (other routes)
+        return '', 404
+
 
 def start_webview():
     api = Api()

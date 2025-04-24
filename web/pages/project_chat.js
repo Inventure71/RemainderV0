@@ -4,22 +4,40 @@ export function renderProjectChat(container, api, project) {
     container.innerHTML = `
         <style scoped>
             .chat-wrapper{display:flex;flex-direction:column;flex:1;min-height:0;}
-            .project-chat-header{padding:16px 12px 10px 12px;border-radius:10px 10px 0 0;color:#000;}
+            .project-chat-header{padding:16px 12px 10px 12px;border-radius:10px 10px 0 0;color:#000;display:flex;align-items:flex-start;}
             .scrollable-list{flex:1;min-height:0;overflow-y:auto;margin:0;padding:0;list-style:none;}
             .form-container{display:flex;gap:8px;align-items:center;margin-top:8px;}
             .form-container textarea{flex:1;resize:none;font:inherit;padding:6px 8px;}
             button[disabled]{opacity:0.5;cursor:not-allowed;}
             .loading{text-align:center;padding:1em;color:#888;}
-            .header-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+            .header-actions{align-self:flex-start;display:flex;gap:6px;}
+            /* Header action buttons styled to match UI */
+            .header-actions button {
+                background: none;
+                border: none;
+                color: #8a8fa7;
+                padding: 0.4em 0.8em;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.9em;
+                margin-right: 6px;
+                transition: background 0.2s, color 0.2s;
+            }
+            .header-actions button:hover {
+                background: #3a3f4b;
+                color: #f7f7fa;
+            }
         </style>
         <div class="chat-wrapper">
             <div class="project-chat-header" style="background:${project.color || '#dddddd'};">
-                <h2 style="margin:0 0 4px 0;">${project.name}</h2>
-                <span class="project-desc" style="display:block;margin:2px 0 8px 0;">${project.description || ''}</span>
+                <div style="flex:1;">
+                    <h2 style="margin:0 0 4px 0;">${project.name}</h2>
+                    <span class="project-desc" style="display:block;margin:2px 0 8px 0;">${project.description || ''}</span>
+                </div>
                 <div class="header-actions">
-                    <button id="editDescBtn" aria-label="Edit description">Edit Description</button>
-                    <button id="editColorBtn" aria-label="Edit color">Edit Color</button>
-                    <button id="backToProjectsBtn" aria-label="Back to projects">Back</button>
+                    <button type="button" id="editDescBtn">Edit Description</button>
+                    <button type="button" id="editColorBtn">Edit Color</button>
+                    <button type="button" id="backToProjectsBtn">Back</button>
                 </div>
             </div>
             <div id="projectMsgLoading" class="loading" hidden>Loading…</div>
@@ -50,23 +68,31 @@ export function renderProjectChat(container, api, project) {
 
     sendBtn.addEventListener('click', () => sendProjectMessage(api, project, textarea, sendBtn));
 
-    document.getElementById('editDescBtn').addEventListener('click', () => {
-        const desc = prompt('Edit description:', project.description || '');
-        if (desc !== null) {
-            api.edit_project(project.id, project.name, desc, project.color)
-               .then(() => window.nav.projectChat(project));
-        }
-    });
-
-    document.getElementById('editColorBtn').addEventListener('click', () => {
-        const color = prompt('Edit color (hex):', project.color || '#dddddd');
-        if (color) {
-            api.edit_project(project.id, project.name, project.description, color)
-               .then(() => window.nav.projectChat(project));
-        }
-    });
-
-    document.getElementById('backToProjectsBtn').addEventListener('click', () => window.nav.projects());
+    // Bind header buttons directly
+    const editDescBtn = container.querySelector('#editDescBtn');
+    if (editDescBtn) {
+        editDescBtn.addEventListener('click', async () => {
+            const desc = prompt('Edit description:', project.description || '');
+            if (desc !== null) {
+                await api.edit_project(project.id, project.name, desc, project.color);
+                project.description = desc;
+                window.nav.projectChat(project);
+            }
+        });
+    }
+    const editColorBtn = container.querySelector('#editColorBtn');
+    if (editColorBtn) {
+        editColorBtn.addEventListener('click', async () => {
+            const color = prompt('Edit color (hex):', project.color || '#dddddd');
+            if (color) {
+                await api.edit_project(project.id, project.name, project.description, color);
+                project.color = color;
+                window.nav.projectChat(project);
+            }
+        });
+    }
+    const backBtn = container.querySelector('#backToProjectsBtn');
+    if (backBtn) backBtn.addEventListener('click', () => window.nav.projects());
 
     loadProjectMessages(api, project);
 }

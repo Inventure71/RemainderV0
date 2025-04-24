@@ -72,15 +72,18 @@ function loadMessages(api) {
 
     if (!api || typeof api.get_all_messages !== 'function') {
         if (loadingDiv) loadingDiv.hidden = true;
-        document.getElementById('messagesList').innerHTML = '<div style="color:#ff5252">API not available</div>';
+        const list = document.getElementById('messagesList');
+        list.innerHTML = '<div style="color:#ff5252">API not available. Retrying in 1s...</div>';
+        setTimeout(() => loadMessages(api), 1000);
         return;
     }
     api.get_all_messages().then(messages => {
         const ul = document.getElementById('messagesList');
         ul.innerHTML = '';
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
-            ul.innerHTML = '<div style="color:#bbb;text-align:center;padding:2em 0">No messages found.</div>';
+            ul.innerHTML = '<div style="color:#bbb;text-align:center;padding:2em 0">No messages found. Refreshing in 5s...</div>';
             if (loadingDiv) loadingDiv.hidden = true;
+            setTimeout(() => loadMessages(api), 5000);
             return;
         }
         messages.forEach(msgData => {
