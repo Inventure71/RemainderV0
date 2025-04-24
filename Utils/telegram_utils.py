@@ -192,7 +192,6 @@ def message_record(update: dict) -> dict:
 
     return record
 
-
 def retrive_messages(save_to_file=True):
     last_offset = load_offset()
     print(f"[info] last processed update_id = {last_offset}")
@@ -211,11 +210,30 @@ def retrive_messages(save_to_file=True):
 
     stored_messages = load_json()
 
+    # --- Import DB handler here to avoid circular import ---
+    import sys
+    sys.path.append(str(Path(__file__).parent.parent))
+    from DatabaseUtils.database_messages import MessageDatabaseHandler
+    db = MessageDatabaseHandler()
+
     for upd in updates:
         rec = message_record(upd)
         stored_messages.append(rec)
         last_offset = max(last_offset, upd["update_id"])
         print(f"[saved] {rec['type']} from chat {rec['chat_id']} (update_id {upd['update_id']})")
+        # Save to DB if it's a text message
+        if rec.get("type") == "text":
+            db.add_message({
+                'content': rec.get('text', ''),
+                'timestamp': rec.get('date_utc', ''),
+                'project': '',
+                'files': None,
+                'extra': None,
+                'processed': 0,
+                'remind': None,
+                'importance': None,
+                'reoccurences': None,
+            })
 
     if save_to_file:
         save_json(stored_messages)

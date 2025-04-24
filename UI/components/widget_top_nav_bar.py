@@ -30,10 +30,9 @@ class TopBar(tk.Frame):
     def refresh_telegram_messages(self):
         try:
             from Utils import telegram_utils
-            telegram_utils.retrive_messages(save_to_file=True)
+            telegram_utils.retrive_messages(save_to_file=False)
             # Optionally, add a callback to refresh the UI after fetching
-            if hasattr(self.master, 'controller') and hasattr(self.master.controller, 'refresh_all_chats'):
-                self.master.controller.refresh_all_chats()
+            self.master.controller.show_frame(self.master.controller.current_page)
         except Exception as e:
             import tkinter.messagebox as mb
             mb.showerror("Telegram Refresh Failed", f"Could not refresh messages from Telegram:\n{e}")

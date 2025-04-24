@@ -19,3 +19,4 @@ UI/__pycache__/widget_model_chat.cpython-310.pyc
 chrome-data/
 telegram_logs/
 .env
+Utils/__pycache__/telegram_utils.cpython-310.pyc

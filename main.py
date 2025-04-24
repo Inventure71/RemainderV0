@@ -24,6 +24,8 @@ class App(tk.Tk):
         self.title("Remainder")
         self.geometry("1080x720")
 
+        self.current_page = None
+
         # Create a container frame to stack pages
         container = tk.Frame(self)
         container.pack(fill="both", expand=True)
@@ -46,6 +48,7 @@ class App(tk.Tk):
         """Raise the frame to the top by string name"""
         frame = self.frames[page_name]
         frame.refresh()
+        self.current_page = page_name
         frame.tkraise()
 
     def select_project(self, project_dictionary):
