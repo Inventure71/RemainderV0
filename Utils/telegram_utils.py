@@ -193,10 +193,7 @@ def message_record(update: dict) -> dict:
     return record
 
 
-# --------------------------------------------------------------------------- #
-# Main
-# --------------------------------------------------------------------------- #
-def main() -> None:
+def retrive_messages(save_to_file=True):
     last_offset = load_offset()
     print(f"[info] last processed update_id = {last_offset}")
 
@@ -220,10 +217,13 @@ def main() -> None:
         last_offset = max(last_offset, upd["update_id"])
         print(f"[saved] {rec['type']} from chat {rec['chat_id']} (update_id {upd['update_id']})")
 
-    save_json(stored_messages)
+    if save_to_file:
+        save_json(stored_messages)
     save_offset(last_offset)
     print(f"[info] Stored {len(updates)} new messages. New offset = {last_offset}")
 
+    return stored_messages
+
 
 if __name__ == "__main__":
-    main()
+    retrive_messages()
