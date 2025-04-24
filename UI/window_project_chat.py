@@ -20,29 +20,28 @@ class ProjectChatWindow(MainChatWindow):
         super().__init__(parent, controller)
 
         # --- Create a container frame for the left side content ---
-        self.left_container = tk.Frame(self)
-        self.left_container.grid(row=1, column=0, rowspan=2, sticky="nsew")
+        self.left_container = tk.Frame(self, bg="#23272e")
+        self.left_container.grid(row=1, column=0, rowspan=3, sticky="nsew", padx=(0, 0), pady=(0, 0))
 
-        # Configure the left container to have two rows
+        # Configure the left container to have three rows
         self.left_container.grid_rowconfigure(0, weight=0)  # Info frame - no vertical stretch
         self.left_container.grid_rowconfigure(1, weight=1)  # Chat area - allow vertical stretch
+        self.left_container.grid_rowconfigure(2, weight=0)  # Input bar - no vertical stretch
         self.left_container.grid_columnconfigure(0, weight=1)  # Full width
 
         # --- Configure Grid Rows for THIS Window's Layout ---
         # Row 0: TopBar (handled by parent)
-        # Row 1: Left container (contains info frame and chat area)
-        # Row 2: Input Bar
+        # Row 1: Left container (contains info frame, chat area, and input bar)
         # Column 0: Left side content
         # Column 10: Right side content (Model Chat - handled by parent)
 
         self.grid_rowconfigure(1, weight=1)  # Left container - allow vertical stretch
-        self.grid_rowconfigure(2, weight=0)  # Input bar - no vertical stretch
         # Column weights (0 and 10) are already set by the parent
 
         # --- Project Info Bar ---
         # Placed in row 0 of the left container
-        self.info_frame = tk.Frame(self.left_container, bg="#f4f4f4", pady=4)
-        self.info_frame.grid(row=0, column=0, sticky="ew")
+        self.info_frame = tk.Frame(self.left_container, bg="#303441", pady=4)
+        self.info_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 8))
 
         # Configure columns *within* the info_frame
         self.info_frame.columnconfigure(0, weight=1)  # Description label column
@@ -51,7 +50,8 @@ class ProjectChatWindow(MainChatWindow):
         self.desc_label = tk.Label(
             self.info_frame,
             text="",
-            bg="#f4f4f4",
+            bg="#303441",
+            fg="black",
             anchor="w",
             justify="left",
             wraplength=1  # Real value set on resize
@@ -59,13 +59,13 @@ class ProjectChatWindow(MainChatWindow):
         self.desc_label.grid(row=0, column=0, sticky="ew", pady=0)
 
         # Create a frame for buttons to keep them together
-        self.button_frame = tk.Frame(self.info_frame, bg="#f4f4f4")
-        self.button_frame.grid(row=0, column=1, sticky="e")
+        self.buttons_frame = tk.Frame(self.info_frame, bg="#303441")
+        self.buttons_frame.grid(row=0, column=1, sticky="e", padx=(8, 0))
 
-        self.edit_desc_btn = tk.Button(self.button_frame, text="Edit Description", command=self.edit_description)
+        self.edit_desc_btn = tk.Button(self.buttons_frame, text="Edit Description", command=self.edit_description, bg="#2c2f33", fg="black", activebackground="#23272e", activeforeground="black")
         self.edit_desc_btn.pack(side="left", padx=5)
 
-        self.edit_color_btn = tk.Button(self.button_frame, text="Edit Color", command=self.edit_color)
+        self.edit_color_btn = tk.Button(self.buttons_frame, text="Edit Color", command=self.edit_color, bg="#2c2f33", fg="black", activebackground="#23272e", activeforeground="black")
         self.edit_color_btn.pack(side="left", padx=5)
 
         # Bind resize event to the main window frame for better wrap updates
@@ -78,8 +78,18 @@ class ProjectChatWindow(MainChatWindow):
         # at row=1 of the left container
 
         # --- Input Bar ---
-        # Re-grid the input_frame created by the parent class to the correct row
+        # Destroy and recreate input_frame as a child of left_container for correct placement
+        try:
+            self.input_frame.destroy()
+        except Exception:
+            pass
+        self.input_frame = tk.Frame(self.left_container, bg="#303441", padx=16, pady=8)
         self.input_frame.grid(row=2, column=0, sticky="ew")
+        self.input_frame.grid_columnconfigure(0, weight=1)
+        self.message_entry = tk.Entry(self.input_frame, font=("Arial", 13), bg="#23272e", fg="#f7f7f7", insertbackground="#f7f7f7", bd=1, relief="flat", highlightthickness=1, highlightbackground="#44495a")
+        self.message_entry.grid(row=0, column=0, sticky="ew", padx=(0, 12), pady=2)
+        send_button = tk.Button(self.input_frame, text="Send", command=self.send_message, font=("Arial", 12, "bold"), bg="#3578e5", fg="black", activebackground="#2851a3", activeforeground="black", bd=0, padx=18, pady=8, relief="flat")
+        send_button.grid(row=0, column=1, pady=2)
 
         # --- Initial State ---
         self.update_project_info()
@@ -103,8 +113,8 @@ class ProjectChatWindow(MainChatWindow):
         available_width = self.info_frame.winfo_width()
 
         # If button_frame exists and is visible, subtract its width
-        if hasattr(self, 'button_frame') and self.button_frame.winfo_exists():
-            button_frame_width = self.button_frame.winfo_width()
+        if hasattr(self, 'buttons_frame') and self.buttons_frame.winfo_exists():
+            button_frame_width = self.buttons_frame.winfo_width()
             # Add some padding
             button_padding = 20
             available_width -= (button_frame_width + button_padding)

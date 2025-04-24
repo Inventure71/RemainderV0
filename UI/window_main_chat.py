@@ -10,7 +10,7 @@ from DatabaseUtils.database_messages import MessageDatabaseHandler
 
 class MainChatWindow(tk.Frame):
     def __init__(self, parent, controller):
-        super().__init__(parent, bg="#2c2c2c")  # dark bg if you want like in screenshot
+        super().__init__(parent, bg="#23272e")  # unified dark bg
 
         self.controller = controller
         self.message_db = MessageDatabaseHandler()
@@ -21,23 +21,22 @@ class MainChatWindow(tk.Frame):
         self.grid_columnconfigure(10, weight=1)  # Make model chat column narrower
 
         # --- Top Bar ---
-        TopBar(self, controller).grid(row=0, column=0, sticky="ew")
+        TopBar(self, controller).grid(row=0, column=0, sticky="ew", columnspan=2)
 
         # --- Scrollable Chat Area ---
         self.scrollable_area = ScrollableMessageArea(self, db_manager=self.message_db)
-        self.scrollable_area.grid(row=1, column=0, sticky="nsew")
+        self.scrollable_area.grid(row=1, column=0, sticky="nsew", padx=18, pady=(12, 6))
 
         # --- Bottom Input Bar ---
-        self.input_frame = tk.Frame(self, bg="lightgray", padx=10, pady=0)
-        self.input_frame.grid(row=2, column=0, sticky="ew")
-
+        self.input_frame = tk.Frame(self, bg="#303441", padx=16, pady=8)
+        self.input_frame.grid(row=2, column=0, sticky="ew", columnspan=2)
         self.input_frame.grid_columnconfigure(0, weight=1)
 
-        self.message_entry = tk.Entry(self.input_frame, font=("Arial", 12))
-        self.message_entry.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+        self.message_entry = tk.Entry(self.input_frame, font=("Arial", 13), bg="#23272e", fg="#f7f7f7", insertbackground="#f7f7f7", bd=1, relief="flat", highlightthickness=1, highlightbackground="#44495a")
+        self.message_entry.grid(row=0, column=0, sticky="ew", padx=(0, 12), pady=2)
 
-        send_button = tk.Button(self.input_frame, text="Send", command=self.send_message)
-        send_button.grid(row=0, column=1)
+        send_button = tk.Button(self.input_frame, text="Send", command=self.send_message, font=("Arial", 12, "bold"), bg="#3578e5", fg="black", activebackground="#2851a3", activeforeground="black", bd=0, padx=18, pady=8, relief="flat")
+        send_button.grid(row=0, column=1, pady=2)
 
         self.messages = None
         self.refresh()
@@ -61,7 +60,7 @@ class MainChatWindow(tk.Frame):
     def populate_chat_area(self, messages):
         """Populate the chat area with messages from the database"""
         self.scrollable_area = ScrollableMessageArea(self, db_manager=self.message_db)
-        self.scrollable_area.grid(row=1, column=0, sticky="nsew")
+        self.scrollable_area.grid(row=1, column=0, sticky="nsew", padx=18, pady=(12, 6))
 
         for message in messages:
             self.scrollable_area.add_message(message['content'], message_id=message["id"] ,assigned_project=message.get('project'), project_list=[])

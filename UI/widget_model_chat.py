@@ -20,9 +20,9 @@ class WidgetModelChat:
         self.max_batch_size = 20  # You can make this configurable
 
         # --- Top Button Bar ---
-        top_button_frame = tk.Frame(parent, bg="lightgray", padx=10, pady=5)
+        top_button_frame = tk.Frame(parent, bg="#23272e", padx=10, pady=5)
         top_button_frame.grid(row=0, column=10, sticky="ew")
-        process_all_button = tk.Button(top_button_frame, text="Process Messages", command=self.process_all_main_chat_messages)
+        process_all_button = tk.Button(top_button_frame, text="Process Messages", command=self.process_all_main_chat_messages, font=("Arial", 12, "bold"), bg="#3578e5", fg="black", activebackground="#2851a3", activeforeground="black", bd=0, padx=12, pady=7, relief="flat")
         process_all_button.pack(side="left", padx=5)
 
         self.check_projects_toggle_var = tk.BooleanVar(value=False)
@@ -31,24 +31,30 @@ class WidgetModelChat:
             text="Check New Projects",
             variable=self.check_projects_toggle_var,
             onvalue=True,
-            offvalue=False
+            offvalue=False,
+            font=("Arial", 12),
+            bg="#23272e",
+            fg="#f7f7f7",
+            selectcolor="#3578e5",
+            activebackground="#23272e",
+            activeforeground="#fff"
         )
         check_projects_toggle.pack(side="left", padx=5)
 
         # --- Scrollable Chat Area ---
         self.scrollable_area = ScrollableMessageArea(parent, db_manager=None)
-        self.scrollable_area.grid(row=1, column=10, sticky="nsew")
+        self.scrollable_area.grid(row=1, column=10, sticky="nsew", padx=10, pady=10)
 
         # --- Bottom Input Bar ---
-        input_frame = tk.Frame(parent, bg="lightgray", padx=10, pady=10)
+        input_frame = tk.Frame(parent, bg="#303441", padx=10, pady=10)
         input_frame.grid(row=2, column=10, sticky="ew")
 
         input_frame.grid_columnconfigure(0, weight=1)
 
-        self.description_entry = tk.Entry(input_frame, font=("Arial", 12))
+        self.description_entry = tk.Entry(input_frame, font=("Arial", 12), bg="#23272e", fg="#f7f7f7", insertbackground="#f7f7f7", bd=1, relief="flat", highlightthickness=1, highlightbackground="#44495a")
         self.description_entry.grid(row=0, column=10, sticky="ew", padx=(0, 10))
 
-        send_button = tk.Button(input_frame, text="Send", command=self.send_message_to_model)
+        send_button = tk.Button(input_frame, text="Send", command=self.send_message_to_model, font=("Arial", 12, "bold"), bg="#3578e5", fg="black", activebackground="#2851a3", activeforeground="black", bd=0, padx=14, pady=7, relief="flat")
         send_button.grid(row=0, column=11)
         # Toggle Buttons
         self.select_messages_toggle_var = tk.BooleanVar(value=False)
@@ -57,9 +63,15 @@ class WidgetModelChat:
             text="Select Message",
             variable=self.select_messages_toggle_var,
             onvalue=True,
-            offvalue=False
+            offvalue=False,
+            font=("Arial", 12),
+            bg="#303441",
+            fg="#f7f7f7",
+            selectcolor="#3578e5",
+            activebackground="#303441",
+            activeforeground="#fff"
         )
-        toggle1_button.grid(row=0, column=12, padx=(10, 0))
+        toggle1_button.grid(row=0, column=12, padx=(12, 0))
 
         self.use_history_toggle_var = tk.BooleanVar(value=False)
         toggle2_button = tk.Checkbutton(
@@ -67,9 +79,15 @@ class WidgetModelChat:
             text="Use history",
             variable=self.use_history_toggle_var,
             onvalue=True,
-            offvalue=False
+            offvalue=False,
+            font=("Arial", 12),
+            bg="#303441",
+            fg="#f7f7f7",
+            selectcolor="#3578e5",
+            activebackground="#303441",
+            activeforeground="#fff"
         )
-        toggle2_button.grid(row=0, column=13, padx=(10, 0))
+        toggle2_button.grid(row=0, column=13, padx=(12, 0))
 
     def send_message_to_model(self):
         user_text = self.description_entry.get().strip()

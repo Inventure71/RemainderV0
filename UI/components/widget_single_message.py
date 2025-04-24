@@ -5,7 +5,7 @@ from DatabaseUtils.database_projects import ProjectsDatabaseHandler
 
 class MessageBox(tk.Frame):
     def __init__(self, parent, text, db_manager=None, id_of_message=0, assigned_project=None, project_list=None, on_click=None, **kwargs):
-        super().__init__(parent, padx=10, pady=10, bd=1, relief="solid", bg="white", **kwargs)
+        super().__init__(parent, padx=10, pady=10, bd=1, relief="solid", bg="#292d36", **kwargs)
 
         """VAIRABLES"""
         self.should_be_deleted = False
@@ -22,11 +22,11 @@ class MessageBox(tk.Frame):
         self.assigned_project = assigned_project
 
         # --- Layout container to help spacing ---
-        content_frame = tk.Frame(self, bg="white")
+        content_frame = tk.Frame(self, bg="#292d36")
         content_frame.pack(fill="both", expand=True)
 
         # --- Right side: Dropdown Menu Button ---
-        self.menu_button = tk.Menubutton(content_frame, text="⋮", relief="flat", bg="white", anchor="e")
+        self.menu_button = tk.Menubutton(content_frame, text="⋮", relief="flat", bg="#292d36", anchor="e", fg="#f7f7f7", font=("Arial", 12))
         self.menu_button.pack(side="right", padx=(5, 0))
 
         self.menu = tk.Menu(self.menu_button, tearoff=0)
@@ -48,25 +48,25 @@ class MessageBox(tk.Frame):
 
         # --- Middle: Project Flag ---
         flag_text = self.assigned_project[:3].upper() if self.assigned_project else ""
-        self.flag_label = tk.Label(content_frame, text=flag_text, foreground="black", bg="white", font=("Arial", 10, "bold"), width=4)
+        self.flag_label = tk.Label(content_frame, text=flag_text, foreground="#3578e5", bg="#292d36", font=("Arial", 10, "bold"), width=4)
         self.flag_label.pack(side="right", padx=5)
 
         # --- Left: Wrapped Text ---
         self.message_label = tk.Label(
             content_frame,
             text=text,
-            wraplength=300,  # Reduced to make the model chat narrower
+            wraplength=360,
             justify="left",
             anchor="w",
-            foreground="black",
-            bg="white",
+            foreground="#f7f7f7",
+            bg="#292d36",
             font=("Arial", 12)
         )
         self.message_label.pack(side="left", fill="both", expand=True, padx=(0, 10))  # Add space from right
 
         if on_click:
             self.message_label.bind("<Button-1>", lambda e: on_click(self.id_of_message))
-            self.message_label.config(cursor="hand2", fg="#3366ff", font=("Arial", 12, "underline"))
+            self.message_label.config(cursor="hand2", fg="#3578e5", font=("Arial", 12, "underline"))
 
 
         self.refresh_project_list()

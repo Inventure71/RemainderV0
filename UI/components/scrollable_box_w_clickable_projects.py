@@ -2,14 +2,14 @@ import tkinter as tk
 
 class ScrollableBox(tk.Frame):
     def __init__(self, parent, box_count=20, project_dictionary=None, columns=4, on_click_callback=None):
-        super().__init__(parent)
+        super().__init__(parent, bg="#23272e")
 
         self.columns = columns
         self.on_click_callback = on_click_callback
 
-        canvas = tk.Canvas(self)
-        scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = tk.Frame(canvas)
+        canvas = tk.Canvas(self, bg="#23272e", highlightthickness=0, borderwidth=0)
+        scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview, bg="#23272e")
+        self.scrollable_frame = tk.Frame(canvas, bg="#23272e")
 
         self.scrollable_frame.bind(
             "<Configure>",
@@ -43,19 +43,17 @@ class ScrollableBox(tk.Frame):
                 row = i // self.columns
                 col = i % self.columns
 
-                # Determine box color and outline
                 box_color = project.get("color", "#dddddd")
-                # Use a special outline color for non-user-created projects
                 if not project.get("user_created", 0):
-                    highlight_color = "#FF5733"  # Example: bright orange outline
+                    highlight_color = "#FF5733"
                 else:
-                    highlight_color = "#228B22"  # Example: green outline
+                    highlight_color = "#228B22"
 
-                box = tk.Frame(self.scrollable_frame, borderwidth=3, relief="raised",
+                box = tk.Frame(self.scrollable_frame, borderwidth=0, relief="flat",
                                bg=box_color, highlightbackground=highlight_color, highlightcolor=highlight_color, highlightthickness=3, padx=10, pady=10)
                 box.grid(row=row, column=col, padx=10, pady=5, sticky="nw")
 
-                label = tk.Label(box, text=project["name"][:3].upper(), bg=box_color)
+                label = tk.Label(box, text=project["name"][:3].upper(), bg=box_color, fg="#23272e", font=("Arial", 12, "bold"))
                 label.pack()
 
                 box.bind("<Button-1>", lambda e, idx=i: self.on_click(idx, self.on_click_callback))
@@ -66,11 +64,11 @@ class ScrollableBox(tk.Frame):
                 row = i // self.columns
                 col = i % self.columns
 
-                box = tk.Frame(self.scrollable_frame, borderwidth=2, relief="raised",
+                box = tk.Frame(self.scrollable_frame, borderwidth=0, relief="flat",
                                bg="#dddddd", padx=10, pady=10)
                 box.grid(row=row, column=col, padx=10, pady=5, sticky="nw")
 
-                label = tk.Label(box, text=f"Item {i + 1}", bg="#dddddd")
+                label = tk.Label(box, text=f"Item {i + 1}", bg="#dddddd", fg="#23272e", font=("Arial", 12, "bold"))
                 label.pack()
 
                 box.bind("<Button-1>", lambda e, idx=i: self.on_click(idx, self.on_click_callback))
