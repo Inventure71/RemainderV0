@@ -1,0 +1,145 @@
+// Message.js - encapsulates rendering and submenu logic for a message in main/project chat
+export class Message {
+  constructor(data, api) {
+    Object.assign(this, data);
+    this.api = api;
+  }
+
+  render() {
+    const li = document.createElement('li');
+    li.className = 'list-item';
+    li.tabIndex = 0;
+    li.dataset.msgId = this.id;
+
+    li.innerHTML = `
+      <div class="message-body cool-message">
+        <div class="message-header">${this.content}</div>
+        <div class="message-meta">
+          <span class="bubble time-bubble">
+            <time datetime="${new Date(this.timestamp).toISOString()}">${new Date(this.timestamp).toLocaleString()}</time>
+          </span>
+          ${this.project ? `<span class="bubble project-bubble">${this.project}</span>` : ''}
+          ${this.remind ? `<span class="bubble remind-bubble">🔔 ${this.remind}</span>` : ''}
+        </div>
+        <div class="message-tags">
+          ${typeof this.importance === 'string' ? `<span class="tag importance-${this.importance.toLowerCase()}">${this.importance}</span>` : ''}
+        </div>
+      </div>
+      <div class="menu-container">
+        <button class="menu-btn" aria-label="Message options">⋮</button>
+        <div class="popout-menu">
+          <ul class="menu-list">
+            <li class="edit-item">✏️ Edit</li>
+            <li class="change-item">Change project ▸
+              <ul class="project-sublist"></ul>
+            </li>
+            <li class="delete-item">🗑️ Delete</li>
+          </ul>
+        </div>
+      </div>
+    `;
+    this.attachMenuLogic(li);
+    return li;
+  }
+
+  renderSubmenu() {
+    return `
+      <div class="menu-container">
+        <button class="menu-btn" aria-label="Message options">⋮</button>
+        <div class="popout-menu">
+          <ul class="menu-list">
+            <li class="edit-item">✏️ Edit</li>
+            <li class="change-item">Change project ▸
+              <ul class="project-sublist"></ul>
+            </li>
+            <li class="delete-item">🗑️ Delete</li>
+          </ul>
+        </div>
+      </div>
+    `;
+  }
+
+  attachMenuLogic(li) {
+    const menuContainer = li.querySelector('.menu-container');
+    const editItem = li.querySelector('.edit-item');
+    const deleteItem = li.querySelector('.delete-item');
+    const changeItem = li.querySelector('.change-item');
+    const projectSublist = li.querySelector('.project-sublist');
+    let projectsLoaded = false;
+
+    // Edit and delete actions
+    editItem.addEventListener('click', e => { e.stopPropagation(); window.actions.editMessageWithProject(this.id, this.project||''); });
+    deleteItem.addEventListener('click', e => { e.stopPropagation(); window.actions.deleteMessage(this.id); });
+
+    // Lazy-load projects on hover of "Change project"
+    changeItem.addEventListener('mouseenter', () => {
+      if (!projectsLoaded) {
+        this.api.get_all_projects().then(projects => {
+          projects.forEach(proj => {
+            const item = document.createElement('li');
+            item.textContent = proj.name;
+            item.tabIndex = 0;
+            item.addEventListener('click', evt => { evt.stopPropagation(); window.actions.changeProject(this.id, proj.name); });
+            projectSublist.appendChild(item);
+          });
+          projectsLoaded = true;
+        });
+      }
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', e => { if (!menuContainer.contains(e.target)) { menuContainer.classList.remove('open'); } });
+
+    // Prevent context-menu override
+    li.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      document.querySelectorAll('.list-item.context-menu-active')
+              .forEach(item => item.classList.remove('context-menu-active'));
+      li.classList.add('context-menu-active');
+
+      const closeMenu = (evt) => {
+        if (!li.contains(evt.target)) {
+          li.classList.remove('context-menu-active');
+          document.removeEventListener('mousedown', closeMenu);
+          document.removeEventListener('keydown', escClose);
+        }
+      };
+      const escClose = (evt) => {
+        if (evt.key === 'Escape') {
+          li.classList.remove('context-menu-active');
+          document.removeEventListener('mousedown', closeMenu);
+          document.removeEventListener('keydown', escClose);
+        }
+      };
+      document.addEventListener('mousedown', closeMenu);
+      document.addEventListener('keydown', escClose);
+    });
+
+    // Hide context menu on scroll
+    li.closest('.scrollable-list')?.addEventListener('scroll', () => {
+      li.classList.remove('context-menu-active');
+    });
+
+    // Helper to get contrasting text color
+    function getContrast(hex) {
+      const c = hex.substring(1);
+      const r = parseInt(c.substr(0,2),16);
+      const g = parseInt(c.substr(2,2),16);
+      const b = parseInt(c.substr(4,2),16);
+      const yiq = (r*299 + g*587 + b*114) / 1000;
+      return yiq >= 128 ? '#000' : '#fff';
+    }
+    const projBubble = li.querySelector('.project-bubble');
+    if (projBubble) {
+      this.api.get_all_projects().then(projs => {
+        const pr = projs.find(p => p.name === this.project);
+        if (pr) {
+          projBubble.style.background = pr.color;
+          projBubble.style.color = getContrast(pr.color);
+        }
+      });
+    }
+  }
+}
+
+export const __testonly__ = { Message };

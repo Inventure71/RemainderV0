@@ -5,6 +5,11 @@ from UI.window_project_chat import ProjectChatWindow
 from UI.window_projects import ProjectsWindow
 from UI.window_main_chat import MainChatWindow
 
+import webview
+from Utils import telegram_utils
+from DatabaseUtils.database_messages import MessageDatabaseHandler
+from DatabaseUtils.database_projects import ProjectsDatabaseHandler
+
 # --- App Setup ---
 class App(tk.Tk):
     def __init__(self):
@@ -56,88 +61,101 @@ class App(tk.Tk):
         self.show_frame("ProjectChatWindow")
 
 
-"""
+class Api:
+    def refresh_telegram_messages(self):
+        try:
+            telegram_utils.retrive_messages(save_to_file=False)
+            return {'success': True}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
 
-tk.Label(self, text="Main Menu", font=("Arial", 16)).pack(pady=10)
-        tk.Button(self, text="Go to Second Menu",
-                  command=lambda: controller.show_frame(SecondMenu)).pack()
+    def get_all_projects(self):
+        db = ProjectsDatabaseHandler()
+        projects = db.get_all_projects()
+        db.close()
+        return projects
 
+    def get_all_messages(self, project=None):
+        db = MessageDatabaseHandler()
+        try:
+            if project:
+                messages = db.get_project_messages(project_name=project)
+            else:
+                messages = db.get_project_messages()
+        except Exception as e:
+            import traceback
+            print("[Error] get_all_messages failed:", e)
+            print(traceback.format_exc())
+            messages = []
+        finally:
+            db.close()
+        return messages
 
-"""
-"""
-tk.Label(top_frame, text="Select Category:").pack(side="left", padx=5)
+    def add_project(self, name, description, color="#dddddd"):
+        from datetime import datetime
+        db = ProjectsDatabaseHandler()
+        db.add_project(name, datetime.now().isoformat(), description, extra="", user_created=1, color=color)
+        db.close()
+        return {'success': True}
 
-categories = ["Work", "Personal", "Study"]
-selected_category = tk.StringVar(value=categories[0])
-category_menu = tk.OptionMenu(top_frame, selected_category, *categories)
-category_menu.pack(side="left")
+    def edit_project(self, project_id, name=None, description=None, color=None):
+        db = ProjectsDatabaseHandler()
+        db.update_project(project_id, new_name=name, new_description=description, color=color)
+        db.close()
+        return {'success': True}
 
-# --- Middle Frame: Task Entry ---
-entry_frame = tk.Frame(root, pady=10)
-entry_frame.pack(fill="x")
+    def delete_project(self, project_id):
+        db = ProjectsDatabaseHandler()
+        db.delete_project(project_id)
+        db.close()
+        return {'success': True}
 
-tk.Label(entry_frame, text="Task:").pack(side="left", padx=5)
-task_entry = tk.Entry(entry_frame)
-task_entry.pack(side="left", fill="x", expand=True, padx=5)
+    def add_message(self, content, project=None, files=None, extra=None, remind=None, importance=None, reoccurences=None):
+        from datetime import datetime
+        db = MessageDatabaseHandler()
+        msg = {
+            'content': content,
+            'timestamp': datetime.now().isoformat(),
+            'project': project,
+            'files': files,
+            'extra': extra,
+            'processed': 0,
+            'remind': remind,
+            'importance': importance,
+            'reoccurences': reoccurences
+        }
+        db.add_message(msg)
+        db.close()
+        return {'success': True}
 
-# Button to add task
-def add_task():
-    task = task_entry.get()
-    category = selected_category.get()
-    if task:
-        listbox.insert(tk.END, f"[{category}] {task}")
-        task_entry.delete(0, tk.END)
-    else:
-        messagebox.showwarning("Empty Task", "Please enter a task first.")
+    def edit_message(self, message_id, content=None, project=None, remind=None, importance=None, processed=None):
+        db = MessageDatabaseHandler()
+        db.update_message(message_id, content=content, project=project, remind=remind, importance=importance, processed=processed)
+        db.close()
+        return {'success': True}
 
-tk.Button(entry_frame, text="Add Task", command=add_task).pack(side="right", padx=5)
+    def delete_message(self, message_id):
+        db = MessageDatabaseHandler()
+        db.delete_message(message_id)
+        db.close()
+        return {'success': True}
 
-# --- Center Frame: Scrollable Task List ---
-task_list_frame = tk.LabelFrame(root, text="Tasks", padx=5, pady=5)
-task_list_frame.pack(fill="both", expand=True, padx=10, pady=10)
+    def mark_message_processed(self, message_id, processed=True):
+        db = MessageDatabaseHandler()
+        db.update_message(message_id, processed=processed)
+        db.close()
+        return {'success': True}
 
-scrollable = ScrollableFrame(task_list_frame)
-scrollable.pack(fill="both", expand=True)
+    # Placeholder for model chat/AI integration
+    def model_chat(self, prompt, use_history=False, project=None):
+        # TODO: Integrate with your model handler
+        return {'response': 'Model response (not implemented)'}
 
-# Add a listbox inside the scrollable frame
-listbox = tk.Listbox(scrollable.scrollable_frame)
-listbox.pack(fill="both", expand=True)
+def start_webview():
+    api = Api()
+    window = webview.create_window('Remainder', 'web/index.html', width=1080, height=720, js_api=api)
+    webview.start(debug=True, http_server=True)
 
-# --- Bottom Frame: Action Buttons ---
-bottom_frame = tk.Frame(root, pady=10)
-bottom_frame.pack(fill="x")
-
-def delete_task():
-    selected = listbox.curselection()
-    if selected:
-        listbox.delete(selected[0])
-    else:
-        messagebox.showinfo("No selection", "Select a task to delete.")
-
-tk.Button(bottom_frame, text="Delete Selected", command=delete_task).pack(pady=5)
-
-# --- Custom Scrollable Frame Class ---
-class ScrollableFrame(tk.Frame):
-    
-    def __init__(self, container, *args, **kwargs):
-        super().__init__(container, *args, **kwargs)
-
-        canvas = tk.Canvas(self)
-        scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = tk.Frame(canvas)
-
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
-        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-"""
 # --- Start the App ---
 if __name__ == "__main__":
-    app = App()
-    app.mainloop()
+    start_webview()

@@ -1,3 +1,9 @@
+# This file is deprecated. All UI logic is now handled in web/index.html and web/main.js using HTML/JS and pywebview.
+
+# The previous Tkinter-based widget_single_message is no longer used.
+
+# You can implement any new Python-to-JS API endpoints in main.py for backend logic.
+
 import tkinter as tk
 
 from DatabaseUtils.database_projects import ProjectsDatabaseHandler

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, initial-scale=1.0">
+    <title>Remainder</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #23272e; color: #fff; margin: 0; }
+        .navbar { background: #2c2c2c; padding: 0.5em 1em; display: flex; align-items: center; }
+        .navbar button { margin-right: 1em; background: #3a3f4b; color: #fff; border: none; padding: 0.7em 1.5em; border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .navbar button:hover { background: #4e5a65; }
+        .navbar .right { margin-left: auto; }
+        .content { padding: 2em; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body style="display:flex;flex-direction:column;height:100vh;margin:0;">
+    <div class="navbar">
+        <button id="navMainChat">Main Chat</button>
+        <button id="navProjects">Projects</button>
+        <button id="navProjectChat">Project Chat</button>
+        <button id="navModelChat">Model Chat</button>
+        <div class="right">
+            <button id="refreshTelegramBtn">Refresh Telegram</button>
+        </div>
+    </div>
+    <div id="app" class="content" style="flex:1;display:flex;flex-direction:column;padding:2em;overflow:hidden;"></div>
+    <script type="module" src="main.js"></script>
+</body>
+</html>
