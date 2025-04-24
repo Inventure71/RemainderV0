@@ -271,8 +271,9 @@ class WidgetModelChat:
                 remind = response_by_id[msg_id_str].get("when", None)
                 importance = response_by_id[msg_id_str].get("importance", None)
 
-                print(f"Message with ID: {msg_id_str}, {((new_project) if (f'was added to project: {new_project}') else '')}, {() if f'is a reminder: {remind} {importance}' else ''}")
-
+                #print(f"Message with ID: {msg_id_str}, {((new_project) if (f'was added to project: {new_project}') else '')}, {() if f'is a reminder: {remind} {importance}' else ''}")
+                print(f"Message with ID: {msg_id_str}, was added to project: {new_project} is a reminder: {remind} {importance}")
+                
                 self.message_db.update_message(msg["id"], processed=True, project=new_project, remind=remind, importance=importance)
 
             else:

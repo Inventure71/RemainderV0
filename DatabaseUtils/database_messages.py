@@ -24,14 +24,15 @@ class MessageDatabaseHandler:
                 extra TEXT,
                 processed INTEGER DEFAULT 0,
                 remind TEXT,
-                importance TEXT
+                importance TEXT,
+                reoccurences TEXT
             )
         """)
         self.conn.commit()
 
     def add_message(self, message):
-        self.cursor.execute("INSERT INTO messages (content, timestamp, project, files, extra, processed, remind, importance) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                            (message['content'], message['timestamp'], message['project'], message['files'], message['extra'], message['remind'], message['importance'], message.get('processed', False)))
+        self.cursor.execute("INSERT INTO messages (content, timestamp, project, files, extra, processed, remind, importance, reoccurences) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            (message['content'], message['timestamp'], message['project'], message['files'], message['extra'], message['processed'], message['remind'], message['importance'], message.get('reoccurences', None)))
         self.conn.commit()
 
         # Get the last inserted ID
@@ -39,7 +40,7 @@ class MessageDatabaseHandler:
         last_id = self.cursor.fetchone()[0]
         return last_id
 
-    def update_message(self, task_id, content=None, timestamp=None, project=None, files=None, extra=None, processed=None, remind=None, importance=None):
+    def update_message(self, task_id, content=None, timestamp=None, project=None, files=None, extra=None, processed=None, remind=None, importance=None, reoccurences=None):
         """
         Update any component of a message by its ID.
         Only the provided parameters will be updated.
@@ -52,6 +53,9 @@ class MessageDatabaseHandler:
         - files: New files data (optional)
         - extra: New extra data (optional)
         - processed: New processed value (optional)
+        - remind: New remind value (optional)
+        - importance: New importance value (optional)
+        - reoccurences: New reoccurences value (optional)
         """
         # Start building the update query
         update_parts = []
@@ -90,6 +94,10 @@ class MessageDatabaseHandler:
             update_parts.append("processed = ?")
             values.append(int(processed))
 
+        if reoccurences is not None:
+            update_parts.append("reoccurences = ?")
+            values.append(reoccurences)
+
         # If no updates are provided, just return
         if not update_parts:
             return
@@ -110,14 +118,14 @@ class MessageDatabaseHandler:
         # gets all messages if no name is specified
         if project_name:
             if only_unprocessed:
-                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance FROM messages WHERE project = ? AND processed = 0", (project_name,))
+                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance, reoccurences FROM messages WHERE project = ? AND processed = 0", (project_name,))
             else:
-                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance FROM messages WHERE project = ?", (project_name,))
+                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance, reoccurences FROM messages WHERE project = ?", (project_name,))
         else:
             if only_unprocessed:
-                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance FROM messages WHERE processed = 0")
+                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance, reoccurences FROM messages WHERE processed = 0")
             else:
-                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance FROM messages")
+                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance, reoccurences FROM messages")
 
         rows = self.cursor.fetchall()
         messages = []
@@ -130,7 +138,8 @@ class MessageDatabaseHandler:
                 "files": row[4],
                 "processed": bool(row[5]),
                 "remind": row[6],
-                "importance": row[7]
+                "importance": row[7],
+                "reoccurences": row[8] if len(row) > 8 else None
             })
         return messages
 
