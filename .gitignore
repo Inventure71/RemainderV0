@@ -15,3 +15,7 @@ UI/components/__pycache__/widget_top_nav_bar.cpython-310.pyc
 Utils/__pycache__/model_handler.cpython-310.pyc
 Utils/__pycache__/prompts.cpython-310.pyc
 .vscode/settings.json
+UI/__pycache__/widget_model_chat.cpython-310.pyc
+chrome-data/
+telegram_logs/
+.env
