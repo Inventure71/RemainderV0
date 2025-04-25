@@ -1,4 +1,7 @@
-# This file is deprecated. All UI logic is now handled in web/index.html and web/main.js using HTML/JS and pywebview.
+# This file is deprecated. The UI is now handled by the web frontend.
+# All logic for project chat is now in the backend API (main.py) and web UI (HTML/JS).
+
+# You may safely delete or ignore this file.
 
 # The previous Tkinter-based ProjectChatWindow is no longer used.
 

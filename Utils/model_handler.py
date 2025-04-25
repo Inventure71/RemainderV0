@@ -89,12 +89,25 @@ class ModelClient:
         Generate content, automatically splitting messages+prompt if needed.
         Combines multiple chunk responses into one output.
         """
-        # Split into (messages_chunk, prompt) pairs
         pairs = self.handle_length(prompt, messages)
+
+        def make_serializable(obj):
+            # Recursively convert Content or other custom objects to dicts
+            if hasattr(obj, "to_dict"):
+                return obj.to_dict()
+            elif hasattr(obj, "__dict__"):
+                return {k: make_serializable(v) for k, v in obj.__dict__.items() if not k.startswith("_")}
+            elif isinstance(obj, list):
+                return [make_serializable(i) for i in obj]
+            elif isinstance(obj, dict):
+                return {k: make_serializable(v) for k, v in obj.items()}
+            else:
+                return obj
 
         if json > 0:
             if json == 3:  # Project creation
                 combined_projects = []
+                all_history = []
                 for msg_chunk, prmpt in pairs:
                     if self.mode == "gemini":
                         resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
@@ -104,10 +117,13 @@ class ModelClient:
 
                     data = _json.loads(resp_text)
                     combined_projects.extend(data.get("projects", []))
+                    if history:
+                        all_history.extend(make_serializable(history))
                 combined = {"projects": combined_projects}
-                return _json.dumps(combined), history
+                return _json.dumps(combined), all_history
             else:  # Other JSON responses (messages)
                 combined_messages = []
+                all_history = []
                 for msg_chunk, prmpt in pairs:
                     if self.mode == "gemini":
                         resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
@@ -117,43 +133,16 @@ class ModelClient:
 
                     data = _json.loads(resp_text)
                     combined_messages.extend(data.get("messages", []))
+                    if history:
+                        all_history.extend(make_serializable(history))
                 combined = {"messages": combined_messages}
-                return _json.dumps(combined), history
-        pairs = self.handle_length(prompt, messages)
-
-        if json > 0:
-            if json == 3:  # Project creation
-                combined_projects = []
-                for msg_chunk, prmpt in pairs:
-                    if self.mode == "gemini":
-                        resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
-                    else:
-                        print("Implement mode", self.mode)
-                        raise ValueError("Invalid mode")
-
-                    data = _json.loads(resp_text)
-                    combined_projects.extend(data.get("projects", []))
-                combined = {"projects": combined_projects}
-                return _json.dumps(combined), history
-            else:  # Other JSON responses (messages)
-                combined_messages = []
-                for msg_chunk, prmpt in pairs:
-                    if self.mode == "gemini":
-                        resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
-                    else:
-                        print("Implement mode", self.mode)
-                        raise ValueError("Invalid mode")
-
-                    data = _json.loads(resp_text)
-                    combined_messages.extend(data.get("messages", []))
-                combined = {"messages": combined_messages}
-                return _json.dumps(combined), history
+                return _json.dumps(combined), all_history
         else:
             responses = []
+            all_history = []
             for idx, (msg_chunk, prmpt) in enumerate(pairs, start=1):
                 if self.mode == "gemini":
                     resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=0, history=None)
-
                 else:
                     print("Implement mode", self.mode)
                     raise ValueError("Invalid mode")
@@ -162,8 +151,10 @@ class ModelClient:
                     responses.append(f"--- Response {idx} ---\n{resp_text}")
                 else:
                     responses.append(resp_text)
+                if history:
+                    all_history.extend(make_serializable(history))
             combined_text = "\n\n".join(responses)
-            return combined_text, history
+            return combined_text, all_history
 
     def generate_with_gemini(self, prompt, messages, json=0, history=None):
         if history is None:
@@ -323,6 +314,152 @@ class ModelClient:
         )
 
         return response, history
+
+    def select_messages(self, user_text, project=None, use_history=False, history=None):
+        """
+        Implements the logic for selecting related messages to a user query, as in the original widget_model_chat.py.
+        Returns (response, history)
+        """
+        from DatabaseUtils.database_messages import MessageDatabaseHandler
+        message_db = MessageDatabaseHandler()
+        if project is not None:
+            messages = message_db.get_project_messages(project)
+        else:
+            messages = message_db.get_project_messages(None)
+        cleared_messages = []
+        cleared_messages_str = ""
+        for message in messages:
+            cleared_messages.append({"id": message["id"], "content": message["content"], "project": message["project"]})
+            cleared_messages_str += f"ID: {message['id']}, Content: {message['content']}, Project: {message['project']}\n"
+        if use_history:
+            hist = history
+        else:
+            hist = None
+        response, new_history = self.generate(prompt=user_text, messages=cleared_messages_str, json=1, history=hist)
+        return response, new_history
+
+    def generic_chat(self, user_text, project=None, use_history=False, history=None):
+        """
+        Implements the generic chat logic (Gemini model, not select messages mode), as in widget_model_chat.py.
+        Returns (response, history)
+        """
+        from DatabaseUtils.database_messages import MessageDatabaseHandler
+        message_db = MessageDatabaseHandler()
+        if project is not None:
+            messages = message_db.get_project_messages(project)
+        else:
+            messages = message_db.get_project_messages(None)
+        cleared_messages_str = ""
+        for message in messages:
+            cleared_messages_str += f"ID: {message['id']}, Content: {message['content']}, Project: {message['project']}\n"
+        if use_history:
+            hist = history
+        else:
+            hist = None
+        response, new_history = self.generate(prompt=user_text, messages=cleared_messages_str, history=hist)
+        return response, new_history
+
+    def process_all_main_chat_messages(self, check_for_new_projects=False, max_batch_size=20):
+        """
+        Processes all unprocessed messages in the main chat, optionally first checking for new projects.
+        Implements the logic from widget_model_chat.py's process_all_main_chat_messages.
+        """
+        from DatabaseUtils.database_messages import MessageDatabaseHandler
+        from DatabaseUtils.database_projects import ProjectsDatabaseHandler
+        from datetime import datetime
+        message_db = MessageDatabaseHandler()
+        projects_db = ProjectsDatabaseHandler()
+        if check_for_new_projects:
+            self.check_for_new_projects(message_db, projects_db)
+        unprocessed = message_db.get_project_messages(project_name=None, only_unprocessed=True)
+        if not unprocessed:
+            print("No unprocessed messages found.")
+            return
+        projects = projects_db.get_all_projects()
+        project_contexts = []
+        for project in projects:
+            project_name = project['name']
+            project_desc = project.get('description', '')
+            messages = message_db.get_project_messages(project_name=project_name)
+            first_5 = messages[:5]
+            first_5_str = "\n".join([f"{m['content']}" for m in first_5])
+            project_contexts.append(f"Project: {project_name}\nDescription: {project_desc}\nFirst 5 Messages Of Project:\n{first_5_str}")
+        projects_prompt = "\n\n".join(project_contexts)
+        batch = []
+        batch_count = 0
+        for msg in unprocessed:
+            if msg['project'] == "" or msg['project'] is None:
+                batch.append(msg)
+                if len(batch) == max_batch_size:
+                    self._process_message_batch(batch, projects_prompt, message_db)
+                    batch_count += 1
+                    batch = []
+        if batch:
+            self._process_message_batch(batch, projects_prompt, message_db)
+            batch_count += 1
+        print(f"Processed {batch_count} batches of messages.")
+
+    def check_for_new_projects(self, message_db, projects_db):
+        """
+        Checks for new projects based on unassigned messages, as in widget_model_chat.py.
+        """
+        from datetime import datetime
+        unprocessed = message_db.get_project_messages(project_name=None, only_unprocessed=True)
+        if not unprocessed:
+            print("No unprocessed messages for project check.")
+            return
+        projects = projects_db.get_all_projects()
+        project_contexts = []
+        for project in projects:
+            project_name = project['name']
+            project_desc = project.get('description', '')
+            messages = message_db.get_project_messages(project_name=project_name)
+            first_5 = messages[:5]
+            first_5_str = "\n".join([f"{m['content']}" for m in first_5])
+            project_contexts.append(f"Project: {project_name}\nDescription: {project_desc}\nFirst 5 Messages Of Project:\n{first_5_str}")
+        projects_prompt = "\n\n".join(project_contexts)
+        cleared_messages_str = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}" for msg in unprocessed if msg['project'] == "" or msg['project'] is None])
+        prompt = f"Already existing projects and some messages in them:\n{projects_prompt}\n\nMessages with no project yet:\n{cleared_messages_str}"
+        print("Checking for new projects with prompt:", prompt)
+        response, _ = self.generate(prompt=prompt, messages=cleared_messages_str, json=3, history=None)
+        print("Project check response:", response)
+        try:
+            import json
+            response_data = json.loads(response)
+            if "projects" in response_data:
+                for project in response_data["projects"]:
+                    if "name" in project and "description" in project:
+                        projects_db.add_project(project["name"], datetime.now(), project["description"], user_created=0)
+        except Exception as e:
+            print(f"Error parsing response or creating new projects: {e}")
+
+    def _process_message_batch(self, batch, projects_prompt, message_db):
+        """
+        Processes a batch of messages, assigning them to projects and extracting reminders, as in widget_model_chat.py.
+        """
+        cleared_messages_str = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}" for msg in batch])
+        prompt = f"PROJECTS CONTEXT:\n{projects_prompt}\n\nMESSAGES TO PROCESS (max {len(batch)}):\n{cleared_messages_str}"
+        print("Processing messages:", cleared_messages_str)
+        response, _ = self.generate(prompt=prompt, messages=cleared_messages_str, json=2, history=None)
+        print("Response:", response)
+        try:
+            import json
+            response_data = json.loads(response)
+            response_messages = response_data.get("messages", [])
+            response_by_id = {str(msg.get("id")): msg for msg in response_messages}
+        except Exception as e:
+            print(f"Error parsing response JSON: {e}")
+            response_by_id = {}
+        for msg in batch:
+            msg_id_str = str(msg["id"])
+            if msg_id_str in response_by_id:
+                new_project = response_by_id[msg_id_str].get("project", None)
+                remind = response_by_id[msg_id_str].get("when", None)
+                importance = response_by_id[msg_id_str].get("importance", None)
+                print(f"Message with ID: {msg_id_str}, was added to project: {new_project} is a reminder: {remind} {importance}")
+                message_db.update_message(msg["id"], processed=True, project=new_project, remind=remind, importance=importance)
+            else:
+                message_db.update_message(msg["id"], processed=True)
 
 if __name__ == "__main__":
     None

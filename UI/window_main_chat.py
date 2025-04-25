@@ -1,8 +1,7 @@
-# This file is deprecated. All UI logic is now handled in web/index.html and web/main.js using HTML/JS and pywebview.
+# --- This file is deprecated. The UI is now handled by the web frontend. ---
+# All logic for main chat is now in the backend API (main.py) and web UI (HTML/JS).
 
-# The previous Tkinter-based MainChatWindow is no longer used.
-
-# You can implement any new Python-to-JS API endpoints in main.py for backend logic.
+# You may safely delete or ignore this file.
 
 import tkinter as tk
 from datetime import datetime
