@@ -18,6 +18,7 @@ Your given context: a list of projects, their description and the first 5 messag
 Your input: a list of messages from the main chat.
 
 Your task: process the messages of the main chat, assign them to the appropriate projects, if the message does not correspond to any project precisely, assign it to the empty project "" or leave them out of your response.
+Note: when evaluating a message consider also the preceding and subsequent messages, some messages might be related and the user might have specified stuff only once.
 
 For each message that you assign, specify:
 1) id, the id of the message
@@ -51,8 +52,9 @@ Your task: Understand if any messages could be organized in projects (collection
 1) Name, the name of the project
 2) Description, a short description of the project (max 200 words)
 
-each project is a collection of messages that are related to each other in someway.
-return a list of projects, es: [projects: [{"name": "Project Name", "description": "Project Description"}]]
+Note: when evaluating a message consider also the preceding and subsequent messages, some messages might be related and the user might have specified stuff only once.
+Each project is a collection of messages that are related to each other in someway.
+Return a list of projects, es: [projects: [{"name": "Project Name", "description": "Project Description"}]]
 """
 
 # 4

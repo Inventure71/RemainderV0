@@ -180,20 +180,7 @@ class ModelClient:
         # This should only include the actual user-model conversation, not the context messages
         if history and isinstance(history, list):
             conversation_history.extend(history)
-        
-        # Inject message chunk (context messages) into history before the prompt
-        # This is only added for this specific request, not saved in the conversation history
-        if messages:
-            conversation_history.append(
-                types.Content(
-                    role="user",
-                    parts=[
-                        types.Part.from_text(text=messages),
-                    ],
-                )
-            )
 
-        # Append the prompt
         conversation_history.append(
             types.Content(
                 role="user",
@@ -203,7 +190,19 @@ class ModelClient:
             )
         )
 
+        # Append the prompt
+        history.append(
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_text(text=f"{prompt}\nContext:\n{messages}"),
+                ],
+            )
+        )
+
         print("Generating content with prompt:", prompt)
+        print("json used", json)
+        print("using history", history)
 
         # find messages
         if json == 1:
@@ -310,6 +309,7 @@ class ModelClient:
 
         
         else:
+            print("using prompt answering")
             generate_content_config = types.GenerateContentConfig(
                 response_mime_type="text/plain",
                 system_instruction=[
@@ -321,7 +321,7 @@ class ModelClient:
         # prompt model
         response = self.gemini_client.models.generate_content(
             model=self.model,
-            contents=conversation_history,
+            contents=history,
             config=generate_content_config,
         ).text
 
