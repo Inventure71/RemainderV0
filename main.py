@@ -161,6 +161,8 @@ class Api:
 
     def model_assign_projects(self, prompt, messages, projects):
         try:
+            print("model assign projects requested")
+            print("project:", projects)
             result, history = model_handler.generate(prompt, messages, json=2)
             return {'result': result, 'history': history}
         except Exception as e:
@@ -171,6 +173,8 @@ class Api:
 
     def model_create_projects(self, prompt, messages):
         try:
+            print("model create projects requested")
+            print("project:", messages)
             result, history = model_handler.generate(prompt, messages, json=3)
             return {'result': result, 'history': history}
         except Exception as e:
