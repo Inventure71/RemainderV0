@@ -70,29 +70,119 @@ window.actions = {
 // Expose scroll-to-message helper for related messages
 window.scrollToMessage = (msgId) => {
   console.log(`[main.js] scrollToMessage called for msgId: ${msgId}`);
-  const li = document.querySelector(`li[data-msg-id="${msgId}"]`);
+
+  // Try to find the message element
+  const findMessage = () => {
+    return document.querySelector(`li[data-msg-id="${msgId}"]`);
+  };
+
+  // Check if we need to reload the messages first
+  const checkAndReloadMessages = () => {
+    // If we're in main chat or project chat, try to reload messages
+    if (window.nav && (window.nav.mainChat || window.nav.projectChat)) {
+      // Force a reload of messages if possible
+      if (window.pywebview?.api?.get_all_messages) {
+        showNotification('Reloading messages to locate message...');
+        return window.pywebview.api.get_all_messages(window.selectedProject?.name || null)
+          .then(() => {
+            // Give the DOM time to update
+            return new Promise(resolve => setTimeout(resolve, 500));
+          })
+          .catch(err => {
+            console.error('Error reloading messages:', err);
+            return Promise.resolve(); // Continue anyway
+          });
+      }
+    }
+    return Promise.resolve(); // No reload needed or possible
+  };
+
+  // Initial attempt
+  let li = findMessage();
   console.log('[main.js] Found element:', li);
+
   if (li) {
-    li.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    li.classList.add('highlighted');
-    setTimeout(() => li.classList.remove('highlighted'), 2000);
+    // Element found, scroll to it
+    highlightAndScroll(li);
   } else {
-    console.warn(`[main.js] Message element not found for msgId: ${msgId}`);
-    showNotification('Message not found in current view');
+    // Element not found, try again after a short delay
+    console.log('[main.js] Message not found immediately, will retry...');
+    showNotification('Locating message...');
+
+    // Try multiple times with increasing delays
+    let attempts = 0;
+    const maxAttempts = 15; // Increased max attempts
+
+    const retry = () => {
+      li = findMessage();
+      if (li) {
+        console.log('[main.js] Found element on retry:', li);
+        highlightAndScroll(li);
+      } else if (attempts < maxAttempts) {
+        attempts++;
+
+        // On the 5th attempt, try reloading messages
+        if (attempts === 5) {
+          checkAndReloadMessages().then(() => {
+            li = findMessage();
+            if (li) {
+              console.log('[main.js] Found element after reload:', li);
+              highlightAndScroll(li);
+            } else {
+              setTimeout(retry, 300 * attempts);
+            }
+          });
+        } else {
+          setTimeout(retry, 300 * attempts); // Increasing delay
+        }
+      } else {
+        console.warn(`[main.js] Message element not found for msgId: ${msgId} after ${maxAttempts} attempts`);
+        showNotification('Message not found. Try refreshing the page.');
+      }
+    };
+
+    setTimeout(retry, 300);
+  }
+
+  function highlightAndScroll(element) {
+    // Ensure the element is visible
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Add highlight effect with more prominent styling
+    element.classList.add('highlighted');
+    element.style.boxShadow = '0 0 0 3px #3578e5, 0 0 15px rgba(53, 120, 229, 0.5)';
+    element.style.transition = 'box-shadow 0.3s ease-in-out';
+    element.style.backgroundColor = '#2a3142';
+
+    // Remove highlight after delay
+    setTimeout(() => {
+      element.classList.remove('highlighted');
+      element.style.boxShadow = '';
+
+      // Fade out the background color change
+      element.style.transition = 'background-color 1s ease-out';
+      setTimeout(() => {
+        element.style.backgroundColor = '';
+        element.style.transition = '';
+      }, 1000);
+    }, 5000); // Longer highlight duration
   }
 };
 
 // Show/hide model chat sidebar overlay
 window.toggleModelChatSidebar = (show, context = {}) => {
   const overlay = document.getElementById('modelChatSidebarOverlay');
+  const body = document.body; // Get the body element
   if (!overlay) return;
   if (show) {
     overlay.style.display = 'block';
+    body.classList.add('model-sidebar-visible'); // Add class to body
     import('./components/model_chat_sidebar.js').then(({ renderModelChatSidebar }) => {
       renderModelChatSidebar(overlay, context);
     });
   } else {
     overlay.style.display = 'none';
+    body.classList.remove('model-sidebar-visible'); // Remove class from body
     overlay.innerHTML = '';
   }
 };
