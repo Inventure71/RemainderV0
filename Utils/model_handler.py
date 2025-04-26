@@ -108,41 +108,53 @@ class ModelClient:
             if json == 3:  # Project creation
                 combined_projects = []
                 all_history = []
+                current_history = history
                 for msg_chunk, prmpt in pairs:
                     if self.mode == "gemini":
-                        resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
+                        resp_text, new_history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=current_history)
+                        # Update history for next chunk if needed
+                        if len(pairs) > 1:
+                            current_history = new_history
                     else:
                         print("Implement mode", self.mode)
                         raise ValueError("Invalid mode")
 
                     data = _json.loads(resp_text)
                     combined_projects.extend(data.get("projects", []))
-                    if history:
-                        all_history.extend(make_serializable(history))
+                    if new_history:
+                        all_history = make_serializable(new_history)
                 combined = {"projects": combined_projects}
                 return _json.dumps(combined), all_history
             else:  # Other JSON responses (messages)
                 combined_messages = []
                 all_history = []
+                current_history = history
                 for msg_chunk, prmpt in pairs:
                     if self.mode == "gemini":
-                        resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=None)
+                        resp_text, new_history = self.generate_with_gemini(prmpt, msg_chunk, json=json, history=current_history)
+                        # Update history for next chunk if needed
+                        if len(pairs) > 1:
+                            current_history = new_history
                     else:
                         print("Implement mode", self.mode)
                         raise ValueError("Invalid mode")
 
                     data = _json.loads(resp_text)
                     combined_messages.extend(data.get("messages", []))
-                    if history:
-                        all_history.extend(make_serializable(history))
+                    if new_history:
+                        all_history = make_serializable(new_history)
                 combined = {"messages": combined_messages}
                 return _json.dumps(combined), all_history
         else:
             responses = []
             all_history = []
+            current_history = history
             for idx, (msg_chunk, prmpt) in enumerate(pairs, start=1):
                 if self.mode == "gemini":
-                    resp_text, history = self.generate_with_gemini(prmpt, msg_chunk, json=0, history=None)
+                    resp_text, new_history = self.generate_with_gemini(prmpt, msg_chunk, json=0, history=current_history)
+                    # Update history for next chunk if needed
+                    if len(pairs) > 1:
+                        current_history = new_history
                 else:
                     print("Implement mode", self.mode)
                     raise ValueError("Invalid mode")
@@ -151,18 +163,28 @@ class ModelClient:
                     responses.append(f"--- Response {idx} ---\n{resp_text}")
                 else:
                     responses.append(resp_text)
-                if history:
-                    all_history.extend(make_serializable(history))
+                if new_history:
+                    all_history = make_serializable(new_history)
             combined_text = "\n\n".join(responses)
             return combined_text, all_history
 
     def generate_with_gemini(self, prompt, messages, json=0, history=None):
+        # Initialize history if not provided
         if history is None:
             history = []
-
-        # Inject message chunk into history before the prompt
+        
+        # Create a new history list for this conversation
+        conversation_history = []
+        
+        # If we have a history from previous interactions, add it to our conversation history
+        # This should only include the actual user-model conversation, not the context messages
+        if history and isinstance(history, list):
+            conversation_history.extend(history)
+        
+        # Inject message chunk (context messages) into history before the prompt
+        # This is only added for this specific request, not saved in the conversation history
         if messages:
-            history.append(
+            conversation_history.append(
                 types.Content(
                     role="user",
                     parts=[
@@ -172,7 +194,7 @@ class ModelClient:
             )
 
         # Append the prompt
-        history.append(
+        conversation_history.append(
             types.Content(
                 role="user",
                 parts=[
@@ -299,12 +321,12 @@ class ModelClient:
         # prompt model
         response = self.gemini_client.models.generate_content(
             model=self.model,
-            contents=history,
+            contents=conversation_history,
             config=generate_content_config,
         ).text
 
         # add response to history
-        history.append(
+        conversation_history.append(
             types.Content(
                 role="model",
                 parts=[
@@ -313,7 +335,7 @@ class ModelClient:
             ),
         )
 
-        return response, history
+        return response, conversation_history
 
     def select_messages(self, user_text, project=None, use_history=False, history=None):
         """
