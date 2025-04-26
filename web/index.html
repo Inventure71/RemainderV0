@@ -25,11 +25,13 @@
             <label style="display:flex;align-items:center;gap:0.4em;color:#fff;font-size:0.97em;">
                 <input type="checkbox" id="checkProjectsToggleNavbar" style="accent-color:#3578e5;"> Check New Projects
             </label>
-            <button id="fetchTelegramBtn">Fetch Telegram</button>
-            <button id="scrapeWhatsappBtn">Scrape WhatsApp</button>
-        </div>
-        <div class="right">
-            <button id="refreshTelegramBtn">Refresh Telegram</button>
+            <div class="dropdown">
+                <button id="messageSourcesBtn" class="dropbtn">Message Sources ▾</button>
+                <div class="dropdown-content">
+                    <a href="#" id="fetchTelegramBtn">Fetch Telegram</a>
+                    <a href="#" id="scrapeWhatsappBtn">Scrape WhatsApp</a>
+                </div>
+            </div>
         </div>
     </div>
     <div id="app" class="content" style="flex:1;display:flex;flex-direction:column;padding:2em;padding-right:0;overflow:hidden;"></div>

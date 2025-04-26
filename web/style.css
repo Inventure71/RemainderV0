@@ -456,3 +456,51 @@ textarea, input[type="text"], input[type="color"] {
 .message-body.cool-message {
   margin-right: 2.2em;
 }
+
+/* Navbar dropdown styles */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropbtn {
+  background: #3a3f4b;
+  color: #fff;
+  border: none;
+  padding: 0.7em 1.5em;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dropbtn:hover {
+  background: #4e5a65;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #23272e;
+  min-width: 160px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  z-index: 1000;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dropdown-content a {
+  color: #fff;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+  transition: background 0.2s;
+}
+
+.dropdown-content a:hover {
+  background-color: #4e5a65;
+}
+
+.dropdown:hover .dropdown-content {
+  display: block;
+}

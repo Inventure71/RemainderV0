@@ -229,45 +229,45 @@ if (navModelChatBtn) {
   navModelChatBtn.onclick = () => window.openModelChatSidebar();
 }
 
-// refresh telegram
-document.getElementById('refreshTelegramBtn').addEventListener('click', () => {
-  api.refresh_telegram_messages().then(r => {
-    showNotification(r.success ? 'Telegram refreshed' : 'Refresh failed: ' + r.error);
-    nav.mainChat();
-  });
-});
+// No longer needed - removed refreshTelegramBtn
 
-// Fetch Telegram and Scrape WhatsApp buttons
+// Fetch Telegram and Scrape WhatsApp links in dropdown
 const fetchTelegramBtn = document.getElementById('fetchTelegramBtn');
 const scrapeWhatsappBtn = document.getElementById('scrapeWhatsappBtn');
 
 if (fetchTelegramBtn) {
-  fetchTelegramBtn.onclick = () => {
-    fetchTelegramBtn.disabled = true;
+  fetchTelegramBtn.onclick = (e) => {
+    e.preventDefault(); // Prevent default link behavior
+    const originalText = fetchTelegramBtn.textContent;
     fetchTelegramBtn.textContent = 'Fetching...';
+    fetchTelegramBtn.style.pointerEvents = 'none'; // Disable clicks
+
     api.run_telegram_fetch().then(r => {
-      fetchTelegramBtn.textContent = 'Fetch Telegram';
-      fetchTelegramBtn.disabled = false;
+      fetchTelegramBtn.textContent = originalText;
+      fetchTelegramBtn.style.pointerEvents = 'auto'; // Re-enable clicks
       showNotification(r.status === 'ok' ? 'Telegram messages fetched' : 'Fetch failed');
     }).catch(() => {
-      fetchTelegramBtn.textContent = 'Fetch Telegram';
-      fetchTelegramBtn.disabled = false;
+      fetchTelegramBtn.textContent = originalText;
+      fetchTelegramBtn.style.pointerEvents = 'auto'; // Re-enable clicks
       showNotification('Fetch failed');
     });
   };
 }
 
 if (scrapeWhatsappBtn) {
-  scrapeWhatsappBtn.onclick = () => {
-    scrapeWhatsappBtn.disabled = true;
+  scrapeWhatsappBtn.onclick = (e) => {
+    e.preventDefault(); // Prevent default link behavior
+    const originalText = scrapeWhatsappBtn.textContent;
     scrapeWhatsappBtn.textContent = 'Scraping...';
+    scrapeWhatsappBtn.style.pointerEvents = 'none'; // Disable clicks
+
     api.run_whatsapp_scrape().then(r => {
-      scrapeWhatsappBtn.textContent = 'Scrape WhatsApp';
-      scrapeWhatsappBtn.disabled = false;
+      scrapeWhatsappBtn.textContent = originalText;
+      scrapeWhatsappBtn.style.pointerEvents = 'auto'; // Re-enable clicks
       showNotification(r.status === 'started' ? 'WhatsApp scraping started' : 'Scrape failed');
     }).catch(() => {
-      scrapeWhatsappBtn.textContent = 'Scrape WhatsApp';
-      scrapeWhatsappBtn.disabled = false;
+      scrapeWhatsappBtn.textContent = originalText;
+      scrapeWhatsappBtn.style.pointerEvents = 'auto'; // Re-enable clicks
       showNotification('Scrape failed');
     });
   };
