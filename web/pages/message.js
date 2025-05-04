@@ -20,14 +20,14 @@ export class Message {
           </span>
           ${this.project ? `<span class="bubble project-bubble">${this.project}</span>` : ''}
           ${this.remind ? `<span class="bubble remind-bubble">🔔 ${this.remind}</span>` : ''}
-          ${this.extra ? `<span class="bubble context-bubble" title="${this.extra}">${this.extra}</span>` : ''}
-        </div>
-        <div class="message-tags">
-          ${typeof this.importance === 'string' ? `<span class="tag importance-${this.importance.toLowerCase()}">${this.importance}</span>` : ''}
+          ${this.extra ? `<span class="bubble context-bubble" title="Context: ${this.extra}" data-tooltip="${this.extra}">extra</span>` : ''}
           <label class="done-toggle">
             <input type="checkbox" class="done-checkbox" ${this.done ? 'checked' : ''}>
             <span class="done-label">DONE</span>
           </label>
+        </div>
+        <div class="message-tags">
+          ${typeof this.importance === 'string' ? `<span class="tag importance-${this.importance.toLowerCase()}">${this.importance}</span>` : ''}
         </div>
       </div>
       <div class="menu-container">

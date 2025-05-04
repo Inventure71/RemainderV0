@@ -94,6 +94,7 @@ body.model-sidebar-visible .content {
   font-weight: 400;
   color: #f7f7fa;
   margin-bottom: 0.13em;
+  user-select: text;
 }
 .message-meta {
   font-size: 0.93em;
@@ -454,7 +455,7 @@ textarea, input[type="text"], input[type="color"] {
 .context-bubble {
   background: #7289da;
   color: #fff;
-  cursor: help;
+  cursor: pointer;
 }
 
 /* Add margin between message body text and menu button */
@@ -468,24 +469,31 @@ textarea, input[type="text"], input[type="color"] {
   align-items: center;
   margin-left: auto;
   cursor: pointer;
-  background: #363b47;
-  border-radius: 8px;
-  padding: 0.2em 0.7em;
-  transition: background 0.2s;
+  background: linear-gradient(135deg, #4a5568, #2d3748);
+  border-radius: 12px;
+  padding: 0.25em 0.8em;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  border: 1px solid #4a5568;
 }
 
 .done-toggle:hover {
-  background: #4e5a65;
+  background: linear-gradient(135deg, #5a6b7e, #3a4a5e);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.3);
 }
 
 .done-checkbox {
   margin-right: 0.5em;
+  accent-color: #7289da;
 }
 
 .done-label {
   font-size: 0.85em;
   font-weight: bold;
   color: #fff;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 /* Navbar dropdown styles */
@@ -534,4 +542,26 @@ textarea, input[type="text"], input[type="color"] {
 
 .dropdown:hover .dropdown-content {
   display: block;
+}
+
+/* Basic tooltip styling */
+[data-tooltip] {
+  position: relative;
+  cursor: help;
+}
+
+[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #333;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  max-width: 300px;
+  z-index: 100;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
