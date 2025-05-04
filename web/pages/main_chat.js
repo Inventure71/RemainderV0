@@ -19,7 +19,10 @@ export function renderMainChat(container, api) {
                     <ul id="messagesList" class="scrollable-list"></ul>
                     <div id="mainChatError" style="color:#ff5252;margin:8px 0 0 0;"></div>
                     <div class="form-container">
-                        <textarea id="messageContent" placeholder="Type a message… (Shift+Enter for new line)" rows="2" autofocus></textarea>
+                        <div style="display:flex;flex-direction:column;flex:1;gap:8px;">
+                            <textarea id="messageContent" placeholder="Type a message… (Shift+Enter for new line)" rows="2" autofocus></textarea>
+                            <textarea id="messageContext" placeholder="Additional context (optional, will be shown on hover)" rows="1"></textarea>
+                        </div>
                         <button id="sendMessageBtn" disabled>Send</button>
                     </div>
                 </div>
@@ -27,7 +30,7 @@ export function renderMainChat(container, api) {
             <div id="modelChatSidebar" style="width:320px;min-width:320px;background:#262a34;border-left:1px solid #363b47;display:flex;flex-direction:column;height:100%;"></div>
         </div>
     `;
-    
+
     // Render the model chat sidebar in context
     import('../components/model_chat_sidebar.js').then(({ renderModelChatSidebar }) => {
         const sidebar = container.querySelector('#modelChatSidebar');
@@ -60,12 +63,18 @@ async function sendMessage(api, textarea, sendBtn) {
     const content = textarea.value.trim();
     if (!content) return;
     sendBtn.disabled = true;
+
+    // Get the context from the context textarea
+    const contextTextarea = document.getElementById('messageContext');
+    const context = contextTextarea ? contextTextarea.value.trim() : '';
+
     try {
-        const r = await api.add_message(content);
+        const r = await api.add_message(content, null, null, context);
         if (r && r.success === false && r.error) {
             document.getElementById('mainChatError').textContent = r.error;
         } else {
             textarea.value = '';
+            if (contextTextarea) contextTextarea.value = '';
             document.getElementById('mainChatError').textContent = '';
             loadMessages(api);
         }
@@ -81,14 +90,17 @@ function loadMessages(api) {
     const loadingDiv = document.getElementById('messagesLoading');
     if (loadingDiv) loadingDiv.hidden = false;
 
-    if (!api || typeof api.get_all_messages !== 'function') {
+    // Try to get the latest API reference in case it became available
+    const currentApi = api || window.pywebview?.api;
+
+    if (!currentApi || typeof currentApi.get_all_messages !== 'function') {
         if (loadingDiv) loadingDiv.hidden = true;
         const list = document.getElementById('messagesList');
         list.innerHTML = '<div style="color:#ff5252">API not available. Retrying in 1s...</div>';
-        setTimeout(() => loadMessages(api), 1000);
+        setTimeout(() => loadMessages(currentApi), 1000);
         return;
     }
-    api.get_all_messages().then(messages => {
+    currentApi.get_all_messages().then(messages => {
         const ul = document.getElementById('messagesList');
         ul.innerHTML = '';
         if (!messages || !Array.isArray(messages) || messages.length === 0) {

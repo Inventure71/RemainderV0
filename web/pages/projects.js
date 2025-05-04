@@ -54,15 +54,19 @@ async function addProject(api, nameInput, descInput, colorInput, addBtn, onProje
     const name = nameInput.value.trim();
     if (!name) return;
     addBtn.disabled = true;
+
+    // Try to get the latest API reference in case it became available
+    const currentApi = api || window.pywebview?.api;
+
     try {
-        const r = await api.add_project(name, descInput.value.trim(), colorInput.value);
+        const r = await currentApi.add_project(name, descInput.value.trim(), colorInput.value);
         if (r && r.success === false && r.error) {
             document.getElementById('projectsError').textContent = r.error;
         } else {
             nameInput.value = '';
             descInput.value = '';
             document.getElementById('projectsError').textContent = '';
-            loadProjects(api, onProjectSelect);
+            loadProjects(currentApi, onProjectSelect);
         }
     } catch (e) {
         document.getElementById('projectsError').textContent = e.message || 'Failed to add project.';
@@ -76,13 +80,17 @@ function loadProjects(api, onProjectSelect) {
     const loadingDiv = document.getElementById('projectsLoading');
     if (loadingDiv) loadingDiv.hidden = false;
 
+    // Try to get the latest API reference in case it became available
+    const currentApi = api || window.pywebview?.api;
+
     // Defensive: check api exists
-    if (!api || typeof api.get_all_projects !== 'function') {
+    if (!currentApi || typeof currentApi.get_all_projects !== 'function') {
         if (loadingDiv) loadingDiv.hidden = true;
-        document.getElementById('projectsGrid').innerHTML = '<div style="color:#ff5252">API not available</div>';
+        document.getElementById('projectsGrid').innerHTML = '<div style="color:#ff5252">API not available. Retrying in 1s...</div>';
+        setTimeout(() => loadProjects(currentApi, onProjectSelect), 1000);
         return;
     }
-    api.get_all_projects().then(projects => {
+    currentApi.get_all_projects().then(projects => {
         const grid = document.getElementById('projectsGrid');
         grid.innerHTML = '';
         if (!projects || !Array.isArray(projects) || projects.length === 0) {

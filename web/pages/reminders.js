@@ -3,21 +3,24 @@ export default async function remindersPage(app, api) {
   app.innerHTML = `<h2>Reminders</h2><table class="reminders-table"><thead><tr><th>Project</th><th>Remind At</th><th>Recurrence</th><th>Actions</th></tr></thead><tbody></tbody></table>`;
   const tbody = app.querySelector('tbody');
 
-  if (!api || typeof api.get_all_reminders !== 'function') {
-    console.debug('API not available for reminders', api);
+  // Try to get the latest API reference in case it became available
+  const currentApi = api || window.pywebview?.api;
+
+  if (!currentApi || typeof currentApi.get_all_reminders !== 'function') {
+    console.debug('API not available for reminders', currentApi);
     app.innerHTML = '<div style="color:#ff5252">API not available. Retrying in 1s...</div>';
-    setTimeout(() => remindersPage(app, api), 1000);
+    setTimeout(() => remindersPage(app, currentApi), 1000);
     return;
   }
 
   let reminders = [], projects = [];
   try {
-    reminders = await api.get_all_reminders();
-    projects = await api.get_all_projects();
+    reminders = await currentApi.get_all_reminders();
+    projects = await currentApi.get_all_projects();
   } catch (e) {
     console.error('Error fetching reminders or projects', e);
     app.innerHTML = `<div style="color:#ff5252">Error loading reminders: ${e.message}. Retrying in 1s...</div>`;
-    setTimeout(() => remindersPage(app, api), 1000);
+    setTimeout(() => remindersPage(app, currentApi), 1000);
     return;
   }
 
@@ -30,8 +33,8 @@ export default async function remindersPage(app, api) {
 
   async function handleUpdate(id, data) {
     try {
-      await api.edit_message(id, null, data.project, data.remind, null, null);
-      return remindersPage(app, api);
+      await currentApi.edit_message(id, null, data.project, data.remind, null, null);
+      return remindersPage(app, currentApi);
     } catch (e) {
       console.error('Error updating reminder', e);
       alert('Failed to update reminder');

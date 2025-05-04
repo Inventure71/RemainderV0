@@ -25,14 +25,15 @@ class MessageDatabaseHandler:
                 processed INTEGER DEFAULT 0,
                 remind TEXT,
                 importance TEXT,
-                reoccurences TEXT
+                reoccurences TEXT,
+                done INTEGER DEFAULT 0
             )
         """)
         self.conn.commit()
 
     def add_message(self, message):
-        self.cursor.execute("INSERT INTO messages (content, timestamp, project, files, extra, processed, remind, importance, reoccurences) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                            (message['content'], message['timestamp'], message['project'], message['files'], message['extra'], message['processed'], message['remind'], message['importance'], message.get('reoccurences', None)))
+        self.cursor.execute("INSERT INTO messages (content, timestamp, project, files, extra, processed, remind, importance, reoccurences, done) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            (message['content'], message['timestamp'], message['project'], message['files'], message['extra'], message['processed'], message['remind'], message['importance'], message.get('reoccurences', None), message.get('done', 0)))
         self.conn.commit()
 
         # Get the last inserted ID
@@ -40,7 +41,7 @@ class MessageDatabaseHandler:
         last_id = self.cursor.fetchone()[0]
         return last_id
 
-    def update_message(self, task_id, content=None, timestamp=None, project=None, files=None, extra=None, processed=None, remind=None, importance=None, reoccurences=None):
+    def update_message(self, task_id, content=None, timestamp=None, project=None, files=None, extra=None, processed=None, remind=None, importance=None, reoccurences=None, done=None):
         """
         Update any component of a message by its ID.
         Only the provided parameters will be updated.
@@ -56,6 +57,7 @@ class MessageDatabaseHandler:
         - remind: New remind value (optional)
         - importance: New importance value (optional)
         - reoccurences: New reoccurences value (optional)
+        - done: New done value (optional)
         """
         # Start building the update query
         update_parts = []
@@ -98,6 +100,10 @@ class MessageDatabaseHandler:
             update_parts.append("reoccurences = ?")
             values.append(reoccurences)
 
+        if done is not None:
+            update_parts.append("done = ?")
+            values.append(int(done))
+
         # If no updates are provided, just return
         if not update_parts:
             return
@@ -118,14 +124,14 @@ class MessageDatabaseHandler:
         # gets all messages if no name is specified
         if project_name:
             if only_unprocessed:
-                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance, reoccurences FROM messages WHERE project = ? AND processed = 0", (project_name,))
+                self.cursor.execute("SELECT id, content, timestamp, project, files, extra, processed, remind, importance, reoccurences, done FROM messages WHERE project = ? AND processed = 0", (project_name,))
             else:
-                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance, reoccurences FROM messages WHERE project = ?", (project_name,))
+                self.cursor.execute("SELECT id, content, timestamp, project, files, extra, processed, remind, importance, reoccurences, done FROM messages WHERE project = ?", (project_name,))
         else:
             if only_unprocessed:
-                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance, reoccurences FROM messages WHERE processed = 0")
+                self.cursor.execute("SELECT id, content, timestamp, project, files, extra, processed, remind, importance, reoccurences, done FROM messages WHERE processed = 0")
             else:
-                self.cursor.execute("SELECT id, content, timestamp, project, files, processed, remind, importance, reoccurences FROM messages")
+                self.cursor.execute("SELECT id, content, timestamp, project, files, extra, processed, remind, importance, reoccurences, done FROM messages")
 
         rows = self.cursor.fetchall()
         messages = []
@@ -136,10 +142,12 @@ class MessageDatabaseHandler:
                 "timestamp": row[2],
                 "project": row[3],
                 "files": row[4],
-                "processed": bool(row[5]),
-                "remind": row[6],
-                "importance": row[7],
-                "reoccurences": row[8] if len(row) > 8 else None
+                "extra": row[5],
+                "processed": bool(row[6]),
+                "remind": row[7],
+                "importance": row[8],
+                "reoccurences": row[9] if len(row) > 9 else None,
+                "done": bool(row[10]) if len(row) > 10 else False
             })
         return messages
 

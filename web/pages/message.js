@@ -13,16 +13,21 @@ export class Message {
 
     li.innerHTML = `
       <div class="message-body cool-message">
-        <div class="message-header">${this.content}</div>
+        <div class="message-header" ${this.extra ? `title="Context: ${this.extra}"` : ''}>${this.content}</div>
         <div class="message-meta">
           <span class="bubble time-bubble">
             <time datetime="${new Date(this.timestamp).toISOString()}">${new Date(this.timestamp).toLocaleString()}</time>
           </span>
           ${this.project ? `<span class="bubble project-bubble">${this.project}</span>` : ''}
           ${this.remind ? `<span class="bubble remind-bubble">🔔 ${this.remind}</span>` : ''}
+          ${this.extra ? `<span class="bubble context-bubble" title="${this.extra}">${this.extra}</span>` : ''}
         </div>
         <div class="message-tags">
           ${typeof this.importance === 'string' ? `<span class="tag importance-${this.importance.toLowerCase()}">${this.importance}</span>` : ''}
+          <label class="done-toggle">
+            <input type="checkbox" class="done-checkbox" ${this.done ? 'checked' : ''}>
+            <span class="done-label">DONE</span>
+          </label>
         </div>
       </div>
       <div class="menu-container">
@@ -65,7 +70,22 @@ export class Message {
     const deleteItem = li.querySelector('.delete-item');
     const changeItem = li.querySelector('.change-item');
     const projectSublist = li.querySelector('.project-sublist');
+    const doneCheckbox = li.querySelector('.done-checkbox');
     let projectsLoaded = false;
+
+    // Try to get the latest API reference in case it became available
+    const currentApi = this.api || window.pywebview?.api;
+
+    // Add event listener for the done checkbox
+    if (doneCheckbox) {
+      doneCheckbox.addEventListener('change', (e) => {
+        const done = e.target.checked;
+        if (currentApi) {
+          currentApi.edit_message(this.id, undefined, undefined, undefined, undefined, undefined, done);
+          this.done = done; // Update the local state
+        }
+      });
+    }
 
     // Shift the pop‑out menu slightly upward for better positioning
     const popoutMenu = menuContainer.querySelector('.popout-menu');
@@ -81,26 +101,35 @@ export class Message {
     // Lazy-load projects on hover of "Change project"
     changeItem.addEventListener('mouseenter', () => {
       if (!projectsLoaded) {
-        this.api.get_all_projects().then(projects => {
-          projects.forEach(proj => {
-            const item = document.createElement('li');
-            item.textContent = proj.name;
-            item.tabIndex = 0;
-            item.addEventListener('click', evt => {
-              evt.stopPropagation();
-              window.actions.changeProject(this.id, proj.name);
-              // update the project bubble immediately for UX
-              const projBubble = li.querySelector('.project-bubble');
-              if (projBubble) {
-                projBubble.textContent = proj.name;
-                projBubble.style.background = proj.color;
-                projBubble.style.color = getContrast(proj.color);
-              }
+        // Try to get the latest API reference in case it became available
+        const currentApi = this.api || window.pywebview?.api;
+
+        if (currentApi && typeof currentApi.get_all_projects === 'function') {
+          currentApi.get_all_projects().then(projects => {
+            projects.forEach(proj => {
+              const item = document.createElement('li');
+              item.textContent = proj.name;
+              item.tabIndex = 0;
+              item.addEventListener('click', evt => {
+                evt.stopPropagation();
+                window.actions.changeProject(this.id, proj.name);
+                // update the project bubble immediately for UX
+                const projBubble = li.querySelector('.project-bubble');
+                if (projBubble) {
+                  projBubble.textContent = proj.name;
+                  projBubble.style.background = proj.color;
+                  projBubble.style.color = getContrast(proj.color);
+                }
+              });
+              projectSublist.appendChild(item);
             });
-            projectSublist.appendChild(item);
+            projectsLoaded = true;
+          }).catch(err => {
+            console.error('Error loading projects:', err);
           });
-          projectsLoaded = true;
-        });
+        } else {
+          console.warn('API not available for loading projects');
+        }
       }
     });
 
@@ -148,13 +177,20 @@ export class Message {
     }
     const projBubble = li.querySelector('.project-bubble');
     if (projBubble) {
-      this.api.get_all_projects().then(projs => {
-        const pr = projs.find(p => p.name === this.project);
-        if (pr) {
-          projBubble.style.background = pr.color;
-          projBubble.style.color = getContrast(pr.color);
-        }
-      });
+      // Try to get the latest API reference in case it became available
+      const currentApi = this.api || window.pywebview?.api;
+
+      if (currentApi && typeof currentApi.get_all_projects === 'function') {
+        currentApi.get_all_projects().then(projs => {
+          const pr = projs.find(p => p.name === this.project);
+          if (pr) {
+            projBubble.style.background = pr.color;
+            projBubble.style.color = getContrast(pr.color);
+          }
+        }).catch(err => {
+          console.error('Error loading projects for bubble styling:', err);
+        });
+      }
     }
   }
 }

@@ -45,7 +45,10 @@ export function renderProjectChat(container, api, project) {
                     <ul id="projectMessages" class="scrollable-list"></ul>
                     <div id="projChatError" style="color:#ff5252;margin:8px 0 0 0;"></div>
                     <div class="form-container">
-                        <textarea id="messageContent" placeholder="Type a message… (Shift+Enter for new line)" rows="2" autofocus></textarea>
+                        <div style="display:flex;flex-direction:column;flex:1;gap:8px;">
+                            <textarea id="messageContent" placeholder="Type a message… (Shift+Enter for new line)" rows="2" autofocus></textarea>
+                            <textarea id="messageContext" placeholder="Additional context (optional, will be shown on hover)" rows="1"></textarea>
+                        </div>
                         <button id="sendProjectMsgBtn" disabled>Send</button>
                     </div>
                 </div>
@@ -53,7 +56,7 @@ export function renderProjectChat(container, api, project) {
             <div id="modelChatSidebar" style="width:320px;min-width:320px;background:#262a34;border-left:1px solid #363b47;display:flex;flex-direction:column;height:100%;"></div>
         </div>
     `;
-    
+
     // Render the model chat sidebar in context, passing current project
     import('../components/model_chat_sidebar.js').then(({ renderModelChatSidebar }) => {
         const sidebar = container.querySelector('#modelChatSidebar');
@@ -112,9 +115,15 @@ async function sendProjectMessage(api, project, textarea, sendBtn) {
     const content = textarea.value.trim();
     if (!content) return;
     sendBtn.disabled = true;
+
+    // Get the context from the context textarea
+    const contextTextarea = document.getElementById('messageContext');
+    const context = contextTextarea ? contextTextarea.value.trim() : '';
+
     try {
-        await api.add_message(content, project.name);
+        await api.add_message(content, project.name, null, context);
         textarea.value = '';
+        if (contextTextarea) contextTextarea.value = '';
         document.getElementById('projChatError').textContent = '';
         loadProjectMessages(api, project);
     } catch (e) {

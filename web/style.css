@@ -451,10 +451,41 @@ textarea, input[type="text"], input[type="color"] {
   background: #52c41a;
   color: #000;
 }
+.context-bubble {
+  background: #7289da;
+  color: #fff;
+  cursor: help;
+}
 
 /* Add margin between message body text and menu button */
 .message-body.cool-message {
   margin-right: 2.2em;
+}
+
+/* Done toggle styles */
+.done-toggle {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  cursor: pointer;
+  background: #363b47;
+  border-radius: 8px;
+  padding: 0.2em 0.7em;
+  transition: background 0.2s;
+}
+
+.done-toggle:hover {
+  background: #4e5a65;
+}
+
+.done-checkbox {
+  margin-right: 0.5em;
+}
+
+.done-label {
+  font-size: 0.85em;
+  font-weight: bold;
+  color: #fff;
 }
 
 /* Navbar dropdown styles */

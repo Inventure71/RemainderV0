@@ -25,6 +25,8 @@ class Api:
         self._message_cache = {}
         # Chat history cache: {context_key: [history]}
         self._chat_history_cache = {}
+        # Toggle state for checking projects
+        self._check_projects = False
 
     def _get_context_key(self, project):
         return project if project else '__main__'
@@ -116,7 +118,7 @@ class Api:
             db.close()
         return reminders
 
-    def add_message(self, content, project=None, files=None, extra=None, remind=None, importance=None, reoccurences=None):
+    def add_message(self, content, project=None, files=None, extra=None, remind=None, importance=None, reoccurences=None, done=False):
         from datetime import datetime
         db = db_messages.MessageDatabaseHandler()
         msg = {
@@ -128,16 +130,17 @@ class Api:
             'processed': 0,
             'remind': remind,
             'importance': importance,
-            'reoccurences': reoccurences
+            'reoccurences': reoccurences,
+            'done': done
         }
         db.add_message(msg)
         db.close()
         self._invalidate_message_cache(project)
         return {'success': True}
 
-    def edit_message(self, message_id, content=None, project=None, remind=None, importance=None, processed=None):
+    def edit_message(self, message_id, content=None, project=None, remind=None, importance=None, processed=None, done=None):
         db = db_messages.MessageDatabaseHandler()
-        db.update_message(message_id, content=content, project=project, remind=remind, importance=importance, processed=processed)
+        db.update_message(message_id, content=content, project=project, remind=remind, importance=importance, processed=processed, done=done)
         db.close()
         self._invalidate_message_cache(project)
         return {'success': True}
@@ -166,7 +169,7 @@ class Api:
             for msg in filtered_messages:
                 print(f"  - ID: {msg['id']} | Project: {msg.get('project')} | Content: {msg['content'][:60]}")
 
-            messages = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}" for msg in filtered_messages])
+            messages = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}{', Context: ' + msg['extra'] if msg.get('extra') else ''}" for msg in filtered_messages])
 
             # History: use in-memory chat history unless a new one is provided
             if use_history and history is not None:
@@ -211,15 +214,15 @@ class Api:
                         db_messages_list = db.get_project_messages(project_name=project)
                     else:
                         db_messages_list = db.get_project_messages()
-                    
+
                     # Format messages for the model
-                    context_messages = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}" 
+                    context_messages = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}{', Context: ' + msg['extra'] if msg.get('extra') else ''}" 
                                          for msg in db_messages_list])
                 except Exception as e:
                     print(f"Error getting context messages: {e}")
                 finally:
                     db.close()
-            
+
             # Process history (only actual user prompts and model responses)
             gemini_history = None
             if history and isinstance(history, list):
@@ -228,7 +231,7 @@ class Api:
                     if isinstance(h, dict) and 'role' in h and 'content' in h:
                         # Only include the actual chat history, not the context messages
                         gemini_history.append(h)
-            
+
             # Generate response
             result, all_history = model_handler.generate(prompt, context_messages, json=1, history=gemini_history)
             return {'result': result, 'history': all_history}
@@ -242,7 +245,7 @@ class Api:
         try:
             print("model assign projects requested")
             print("project:", projects)
-            
+
             # If messages is provided directly, use it
             # Otherwise, get all messages from the current context
             context_messages = messages
@@ -251,13 +254,13 @@ class Api:
                 try:
                     context_messages_list = db.get_project_messages(None)
                     # Format messages for the model
-                    context_messages = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}" 
+                    context_messages = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}{', Context: ' + msg['extra'] if msg.get('extra') else ''}" 
                                          for msg in context_messages_list])
                 except Exception as e:
                     print(f"Error getting context messages: {e}")
                 finally:
                     db.close()
-            
+
             # Process history (only actual user prompts and model responses)
             gemini_history = None
             if history and isinstance(history, list):
@@ -266,7 +269,7 @@ class Api:
                     if isinstance(h, dict) and 'role' in h and 'content' in h:
                         # Only include the actual chat history, not the context messages
                         gemini_history.append(h)
-            
+
             # Generate response
             result, all_history = model_handler.generate(prompt, context_messages, json=2, history=gemini_history)
             return {'result': result, 'history': all_history}
@@ -280,7 +283,7 @@ class Api:
         try:
             print("model create projects requested")
             print("messages:", messages)
-            
+
             # If messages is provided directly, use it
             # Otherwise, get all messages from the current context
             context_messages = messages
@@ -289,13 +292,13 @@ class Api:
                 try:
                     context_messages_list = db.get_project_messages(None)
                     # Format messages for the model
-                    context_messages = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}" 
+                    context_messages = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}{', Context: ' + msg['extra'] if msg.get('extra') else ''}" 
                                          for msg in context_messages_list])
                 except Exception as e:
                     print(f"Error getting context messages: {e}")
                 finally:
                     db.close()
-            
+
             # Process history (only actual user prompts and model responses)
             gemini_history = None
             if history and isinstance(history, list):
@@ -304,7 +307,7 @@ class Api:
                     if isinstance(h, dict) and 'role' in h and 'content' in h:
                         # Only include the actual chat history, not the context messages
                         gemini_history.append(h)
-            
+
             # Generate response
             result, all_history = model_handler.generate(prompt, context_messages, json=3, history=gemini_history)
             return {'result': result, 'history': all_history}
@@ -332,6 +335,32 @@ class Api:
         db.delete_project(project_id)
         db.close()
         return {'success': True}
+
+    def toggle_check_projects(self, checked):
+        """
+        Toggle the check_projects flag based on the checkbox state.
+
+        Args:
+            checked (bool): Whether the checkbox is checked
+        """
+        self._check_projects = checked
+        print(f"Check projects toggled: {self._check_projects}")
+        return {'success': True}
+
+    def process_all_messages(self):
+        """
+        Process all unprocessed messages in the main chat.
+        If check_projects is enabled, first check for new projects before processing messages.
+        """
+        try:
+            print(f"Processing all messages with check_projects={self._check_projects}")
+            model_handler.process_all_main_chat_messages(check_for_new_projects=self._check_projects)
+            return {'success': True}
+        except Exception as e:
+            import traceback
+            print('process_all_messages error:', e)
+            print(traceback.format_exc())
+            return {'success': False, 'error': str(e), 'traceback': traceback.format_exc()}
 
 if __name__ == '__main__':
     if webview:
