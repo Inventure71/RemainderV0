@@ -32,20 +32,14 @@ class ModelClient:
         """
         return len(text.split())
 
-    def handle_length(self, prompt, messages=""):
+    def handle_length(self, prompt, messages="", overlap_words=50):
         """
         Ensure that the combined size of `messages` + `prompt` never exceeds
-        85 % of the model context window.  When it does, split `messages` into
-        successive chunks so that each chunk, together with `prompt`, stays
-        within the limit.
-
-        Returns
-        -------
-        list[tuple[str, str]]
-            A list of (messages_chunk, prompt) pairs ready to be fed to the
-            model one after another.
+        85 % of the model context window. When it does, split `messages` into
+        successive chunks with overlap.
+        Returns a list of (messages_chunk, prompt) pairs.
         """
-        # Hard limit per request (85 % of the full context window)
+        # Hard limit per request (85 % of the full context window)
         max_ctx = int(self.model_context_window * 0.85)
 
         prompt_tokens = self._count_tokens(prompt)
@@ -53,36 +47,86 @@ class ModelClient:
         if prompt_tokens >= max_ctx:
             raise ValueError(
                 f"Prompt alone occupies {prompt_tokens} tokens, which exceeds "
-                f"the 85 % context‑window budget of {max_ctx} tokens."
+                f"the 85 % context-window budget of {max_ctx} tokens."
             )
 
-        total_tokens = prompt_tokens + self._count_tokens(messages)
-        # Fast path: everything fits.
-        if total_tokens <= max_ctx:
-            return [(messages, prompt)]
-
-        # We need to split `messages`.
-        token_budget = max_ctx - prompt_tokens
         words = messages.split()
-        chunks = []
-        current_words = []
-        current_tokens = 0
+        total_message_words = len(words)
+        # Estimate token budget per chunk based on *average* word count per chunk needed
+        # This is rough, as prompt is constant but word count varies.
+        num_chunks_needed = (self._count_tokens(messages) + prompt_tokens + max_ctx -1) // max_ctx # Ceiling division
+        
+        if num_chunks_needed <= 1:
+            # No splitting needed, return the original message
+             if prompt_tokens + self._count_tokens(messages) <= max_ctx:
+                  return [(messages, prompt)]
+             else:
+                  # This case should ideally not happen if prompt_tokens < max_ctx, but as safeguard:
+                  print("Warning: Message likely too large even for a single chunk. Truncating.")
+                  token_budget = max_ctx - prompt_tokens
+                  truncated_message = " ".join(words[:token_budget]) # Simple truncation by word count
+                  return [(truncated_message, prompt)]
 
-        for word in words:
-            current_tokens += 1  # naïve 1‑to‑1 mapping word→token
-            if current_tokens > token_budget:
-                # Close off the current chunk and start a new one.
-                chunks.append(" ".join(current_words))
-                current_words = [word]
-                current_tokens = 1
+        # Calculate token budget per chunk, accounting for overlap slightly
+        # Reduce budget slightly to make room for potential overlap additions
+        # This is still an approximation.
+        token_budget = max_ctx - prompt_tokens - overlap_words 
+        if token_budget <= 0:
+             raise ValueError("Prompt and overlap requirement exceed context limit.")
+
+        chunks_data = [] # Store tuples of (start_word_index, end_word_index)
+        current_word_index = 0
+        last_chunk_end_index = 0
+
+        while current_word_index < total_message_words:
+            start_index = current_word_index
+            # Estimate end index based on token budget
+            # This is approximate because we count words not exact tokens
+            estimated_end_index = min(start_index + token_budget, total_message_words)
+            
+            # Refine end index by actually counting tokens (if a precise tokenizer were available)
+            # For now, we stick to the word count approximation
+            actual_end_index = estimated_end_index 
+            
+            # Ensure we don't create empty chunks
+            if start_index >= actual_end_index:
+                # This might happen if token budget is extremely small; advance minimally
+                 actual_end_index = min(start_index + 1, total_message_words)
+            
+            chunks_data.append((start_index, actual_end_index))
+            last_chunk_end_index = actual_end_index
+            current_word_index = actual_end_index
+            
+            # Break if we somehow overshoot (safety)
+            if current_word_index >= total_message_words: 
+                break
+
+        # Construct final chunks with overlap
+        final_chunks = []
+        for i, (start, end) in enumerate(chunks_data):
+            actual_start = start
+            if i > 0 and overlap_words > 0:
+                # Prepend overlap from the *previous* chunk's original words
+                prev_chunk_start, prev_chunk_end = chunks_data[i-1]
+                overlap_start_index = max(prev_chunk_start, prev_chunk_end - overlap_words)
+                # Use words from the original list to get overlap
+                overlap_words_list = words[overlap_start_index:prev_chunk_end]
+                current_chunk_words = words[start:end]
+                chunk_text = " ".join(overlap_words_list + current_chunk_words)
+                # Recalculate tokens and truncate if overlap made it too long
+                current_tokens = self._count_tokens(chunk_text)
+                if prompt_tokens + current_tokens > max_ctx:
+                    excess_tokens = (prompt_tokens + current_tokens) - max_ctx
+                    # Truncate from the *end* of the combined chunk words
+                    combined_words = overlap_words_list + current_chunk_words
+                    chunk_text = " ".join(combined_words[:-excess_tokens]) # Remove words from end
             else:
-                current_words.append(word)
+                # First chunk or no overlap
+                chunk_text = " ".join(words[start:end])
 
-        if current_words:  # add the final chunk
-            chunks.append(" ".join(current_words))
+            final_chunks.append((chunk_text, prompt))
 
-        # Return list of (messages_chunk, prompt) pairs
-        return [(chunk, prompt) for chunk in chunks]
+        return final_chunks
 
     def generate(self, prompt, messages="", json=0, history=None):
         """
@@ -248,27 +292,42 @@ class ModelClient:
                             type=genai.types.Type.ARRAY,
                             items=genai.types.Schema(
                                 type=genai.types.Type.OBJECT,
-                                required=["id", "project", "why"],
                                 properties={
                                     "id": genai.types.Schema(
                                         type=genai.types.Type.INTEGER,
+                                        description="The ID of the message being processed."
                                     ),
                                     "project": genai.types.Schema(
                                         type=genai.types.Type.STRING,
+                                        description="The project name to assign the message to, or empty string if none."
                                     ),
                                     "why": genai.types.Schema(
                                         type=genai.types.Type.STRING,
+                                        description="Brief justification for project assignment (max 10 words)."
                                     ),
                                     "when": genai.types.Schema(
                                         type=genai.types.Type.STRING,
+                                        description="Reminder time in YYYY-MM-DD-HH:MM format, if applicable."
                                     ),
                                     "importance": genai.types.Schema(
-                                        type=genai.types.Type.STRING,
+                                        type=genai.types.Type.STRING, # Keep as string for flexibility, parse later if needed
+                                        description="Importance score (1-10) or 0/omit if not a reminder."
                                     ),
+                                    "reoccurence": genai.types.Schema(
+                                        type=genai.types.Type.OBJECT,
+                                        description="Optional. JSON object describing recurrence rule.",
+                                        properties={
+                                            "type": genai.types.Schema(type=genai.types.Type.STRING, description="'daily' or 'weekly'", enum=["daily", "weekly"]),
+                                            "days": genai.types.Schema(type=genai.types.Type.ARRAY, items=genai.types.Schema(type=genai.types.Type.INTEGER), description="Array of day numbers (1-7) for weekly recurrence.")
+                                        },
+                                        required=["type"] # Type is required if reoccurence object exists
+                                    )
                                 },
+                                required=["id"] # Only ID is strictly required in the response item
                             ),
                         ),
                     },
+                    required=["messages"] # The top-level 'messages' array is required
                 ),
                 system_instruction=[
                     types.Part.from_text(
@@ -458,10 +517,39 @@ class ModelClient:
     def _process_message_batch(self, batch, projects_prompt, message_db):
         """
         Processes a batch of messages, assigning them to projects and extracting reminders, as in widget_model_chat.py.
+        Includes message timestamps and current time in the prompt.
         """
-        cleared_messages_str = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}" for msg in batch])
-        prompt = f"PROJECTS CONTEXT:\n{projects_prompt}\n\nMESSAGES TO PROCESS (max {len(batch)}):\n{cleared_messages_str}"
-        print("Processing messages:", cleared_messages_str)
+        from datetime import datetime
+        # Format messages to include timestamps
+        cleared_messages_str_list = []
+        for msg in batch:
+            # Basic check for timestamp existence and format
+            ts_str = msg.get('timestamp', 'Unknown Timestamp')
+            try:
+                # Attempt to parse for potential re-formatting or just keep original
+                # parsed_ts = datetime.fromisoformat(ts_str)
+                # formatted_ts = parsed_ts.strftime("%Y-%m-%d %H:%M") # Example format
+                formatted_ts = ts_str # Keep original for now
+            except (ValueError, TypeError):
+                formatted_ts = ts_str # Keep original if parsing fails
+            cleared_messages_str_list.append(f"ID: {msg['id']}, Timestamp: {formatted_ts}, Content: {msg['content']}")
+        
+        cleared_messages_str = "\n".join(cleared_messages_str_list)
+        
+        # Get current time
+        current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Add current time and instructions about timestamps to the prompt
+        prompt = f"Current Time: {current_time_str}\n\nPROJECTS CONTEXT:\n{projects_prompt}\n\nMESSAGES TO PROCESS (max {len(batch)}):\n(Note: Use the message timestamp and current time to determine reminder dates accurately, especially relative ones like 'tomorrow'. Default reminder time is 23:00 of the message's day if unspecified.)\n{cleared_messages_str}"
+        
+        print("Processing messages with prompt including timestamps and current time:")
+        # print(prompt) # Uncomment for debugging the full prompt
+        print(cleared_messages_str)
+        
+        # Pass the modified prompt and the original message string (or the timestamped one?) to generate.
+        # The `messages` argument in generate is primarily for length calculation/splitting. 
+        # The full context including timestamps is now in the `prompt` argument.
+        # Let's pass the timestamped string to `messages` as well for consistency in splitting.
         response, _ = self.generate(prompt=prompt, messages=cleared_messages_str, json=2, history=None)
         print("Response:", response)
         try:
@@ -475,12 +563,17 @@ class ModelClient:
         for msg in batch:
             msg_id_str = str(msg["id"])
             if msg_id_str in response_by_id:
-                new_project = response_by_id[msg_id_str].get("project", None)
-                remind = response_by_id[msg_id_str].get("when", None)
-                importance = response_by_id[msg_id_str].get("importance", None)
-                print(f"Message with ID: {msg_id_str}, was added to project: {new_project} is a reminder: {remind} {importance}")
-                message_db.update_message(msg["id"], processed=True, project=new_project, remind=remind, importance=importance)
+                resp_item = response_by_id[msg_id_str]
+                new_project = resp_item.get("project", None)
+                remind = resp_item.get("when", None)
+                importance = resp_item.get("importance", None)
+                reoccurence_data = resp_item.get("reoccurence", None)
+                reoccurence_json = _json.dumps(reoccurence_data) if reoccurence_data else None
+
+                print(f"Message ID: {msg_id_str}, Project: {new_project}, Reminder: {remind}, Importance: {importance}, Reoccurence: {reoccurence_json}")
+                message_db.update_message(msg["id"], processed=True, project=new_project, remind=remind, importance=importance, reoccurences=reoccurence_json)
             else:
+                print(f"Message ID: {msg_id_str} not processed by model, marking done.")
                 message_db.update_message(msg["id"], processed=True)
 
 if __name__ == "__main__":

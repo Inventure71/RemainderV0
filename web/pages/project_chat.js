@@ -1,6 +1,14 @@
 import { Message } from './message.js';
+import { renderReminderItem } from '../components/reminder_item.js';
 
 export function renderProjectChat(container, api, project) {
+    // --- Special Handling for Reminders Project ---
+    if (project.id === '__reminders__') {
+        renderRemindersView(container, api, project);
+        return; // Don't render standard project chat
+    }
+
+    // --- Standard Project Chat Rendering ---
     container.innerHTML = `
         <div style="display:flex;height:100%;min-height:0;">
             <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;background:${project.color || '#23272e'};">
@@ -141,6 +149,74 @@ export function renderProjectChat(container, api, project) {
     loadProjectMessages(api, project);
 }
 
+// --- NEW: Function to render the dedicated Reminders view ---
+function renderRemindersView(container, api, project) {
+    container.innerHTML = `
+        <div style="display:flex;flex-direction:column;height:100%;min-height:0;background:#23272e;">
+            <style scoped>
+                /* Add styles specific to reminder view if needed */
+                .reminders-list { flex:1;min-height:0;overflow-y:auto;margin:0;padding:10px;list-style:none;background:#23272e; }
+                .reminders-header { padding:16px 12px 10px 12px; background: #2a3142; color: #f0f0f0; display:flex; justify-content: space-between; align-items: center; }
+                .loading { text-align:center; padding:1em; color:#888; }
+                .reminders-header button {
+                    background: none; border: none; color: #adb5bd; padding: 0.4em 0.8em;
+                    border-radius: 4px; cursor: pointer; font-size: 0.9em;
+                    transition: background 0.2s, color 0.2s;
+                }
+                .reminders-header button:hover { background: #343a40; color: #f7f7fa; }
+            </style>
+            <div class="reminders-header">
+                <h2 style="margin:0;">⏰ ${project.name}</h2>
+                <button type="button" id="backToProjectsBtn">Back</button>
+            </div>
+            <div id="remindersLoading" class="loading" hidden>Loading Reminders…</div>
+            <ul id="remindersList" class="reminders-list"></ul>
+            <div id="remindersError" style="color:#ff5252;margin:8px;text-align:center;"></div>
+            </div>
+        </div>
+    `;
+
+    // Bind back button
+    const backBtn = container.querySelector('#backToProjectsBtn');
+    if (backBtn) backBtn.addEventListener('click', () => window.nav.projects());
+
+    // Load reminders
+    loadRemindersList(api);
+}
+
+// --- NEW: Function to load and display reminder items ---
+function loadRemindersList(api) {
+    const loadingDiv = document.getElementById('remindersLoading');
+    const listUl = document.getElementById('remindersList');
+    const errorDiv = document.getElementById('remindersError');
+    if (loadingDiv) loadingDiv.hidden = false;
+    if (errorDiv) errorDiv.textContent = '';
+    listUl.innerHTML = ''; // Clear previous items
+
+    api.get_reminder_messages().then(reminders => {
+        if (loadingDiv) loadingDiv.hidden = true;
+        if (!reminders || !Array.isArray(reminders)) {
+            throw new Error("Invalid response received for reminders.");
+        }
+        if (reminders.length === 0) {
+            listUl.innerHTML = '<div style="color:#bbb;text-align:center;padding:2em 0">No reminders found.</div>';
+            return;
+        }
+
+        reminders.forEach(reminderData => {
+            // Use the new renderReminderItem function
+            const reminderElement = renderReminderItem(reminderData, api, () => loadRemindersList(api)); // Pass refresh callback
+            listUl.appendChild(reminderElement);
+        });
+
+    }).catch(e => {
+        console.error("Error loading reminders:", e);
+        if (loadingDiv) loadingDiv.hidden = true;
+        if (errorDiv) errorDiv.textContent = `Failed to load reminders: ${e.message || e}`;
+        listUl.innerHTML = ''; // Clear list on error
+    });
+}
+
 async function sendProjectMessage(api, project, textarea, sendBtn) {
     const content = textarea.value.trim();
     if (!content) return;
@@ -194,5 +270,4 @@ function loadProjectMessages(api, project) {
     });
 }
 
-
-export const __testonly__ = { sendProjectMessage, loadProjectMessages };
+export const __testonly__ = { sendProjectMessage, loadProjectMessages, loadRemindersList };

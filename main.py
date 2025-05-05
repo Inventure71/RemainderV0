@@ -118,6 +118,20 @@ class Api:
             db.close()
         return reminders
 
+    def get_reminder_messages(self):
+        """API endpoint to get all non-done messages with reminders."""
+        db = db_messages.MessageDatabaseHandler()
+        try:
+            messages = db.get_reminder_messages() # Use the new DB handler method
+        except Exception as e:
+            import traceback
+            print("[Error] get_reminder_messages failed:", e)
+            print(traceback.format_exc())
+            messages = []
+        finally:
+            db.close()
+        return messages
+
     def add_message(self, content, project=None, files=None, extra=None, remind=None, importance=None, reoccurences=None, done=False):
         from datetime import datetime
         db = db_messages.MessageDatabaseHandler()
@@ -138,12 +152,22 @@ class Api:
         self._invalidate_message_cache(project)
         return {'success': True}
 
-    def edit_message(self, message_id, content=None, project=None, remind=None, importance=None, processed=None, done=None):
+    def edit_message(self, message_id, content=None, project=None, remind=None, importance=None, processed=None, done=None, reoccurences=None):
+        """Edit message details, including recurrence."""
         db = db_messages.MessageDatabaseHandler()
-        db.update_message(message_id, content=content, project=project, remind=remind, importance=importance, processed=processed, done=done)
-        db.close()
-        self._invalidate_message_cache(project)
-        return {'success': True}
+        try:
+            print(f"Editing message {message_id}: remind={remind}, reoccurences={reoccurences}")
+            db.update_message(message_id, content=content, project=project, remind=remind, importance=importance, processed=processed, done=done, reoccurences=reoccurences)
+            # Invalidate relevant caches - invalidate all for now for simplicity
+            self._message_cache = {}
+            return {'success': True}
+        except Exception as e:
+            import traceback
+            print(f"[Error] edit_message failed for ID {message_id}:", e)
+            print(traceback.format_exc())
+            return {'success': False, 'error': str(e)}
+        finally:
+            db.close()
 
     def delete_message(self, message_id):
         db = db_messages.MessageDatabaseHandler()
@@ -152,6 +176,25 @@ class Api:
         # Could not determine project, so clear all caches
         self._message_cache = {}
         return {'success': True}
+
+    def toggle_reminder_done(self, message_id, done_status):
+        """API endpoint to toggle the done status of a reminder message."""
+        db = db_messages.MessageDatabaseHandler()
+        try:
+            print(f"Toggling reminder done status for ID {message_id} to {done_status}")
+            # Use existing update_message, ensuring done_status is correctly interpreted (0 or 1)
+            db.update_message(task_id=message_id, done=bool(done_status))
+            # Invalidate cache if necessary - though reminders view fetches directly, maybe other views use cache?
+            # For safety, let's invalidate the general cache. A more targeted approach might be possible.
+            self._message_cache = {}
+            return {'success': True}
+        except Exception as e:
+            import traceback
+            print("[Error] toggle_reminder_done failed:", e)
+            print(traceback.format_exc())
+            return {'success': False, 'error': str(e)}
+        finally:
+            db.close()
 
     def model_chat(self, prompt, project=None, use_history=False, history=None):
         try:

@@ -1,5 +1,3 @@
-
-
 # 0
 sys_prompt_answer_question = """
 You are given a list of messages, your goal is to answer the query from the user in the most relevant way using them as source. Do not list all the messages unless requested to do so. Give short and concise answers. At the end of the message cite the used messages by writing a python list with their IDs, es: [1,14,33].
@@ -33,10 +31,17 @@ Messages to include:
 
 If a message does not state the time when it should be reminded, set the remind date to 23:00 of the current day.
 
+Identify recurrence if mentioned (e.g., "every day", "each Monday", "weekly").
+
 The extra parameters that will need to be filled in this task are:
 1) id, the id of the message
 2) when, when does the message need to be reminded, use year-month-day-hour-minute format, es: 2005-10-31-14:25 another example 2025-01-02-23:00
 3) importance, from a scale from 1 to 10 how important it is to remember, where 1 is almost irrelevant and 10 is extremely time sensitive, if the user specify a time or day give a number equal or higher than 8, if indecisive give a 7
+4) reoccurence (optional), if the reminder should repeat. Output a JSON object: 
+   - For daily: `{"type": "daily"}` 
+   - For weekly on specific days (e.g., Mon, Wed, Fri): `{"type": "weekly", "days": [1, 3, 5]}` (1=Mon, 7=Sun)
+   - If no recurrence, omit this field.
+
 If the message doesn't need to be reminded then omit the extra fields or give an importance 0
 
 If the message is both in task one and task 2 only specify ID once.

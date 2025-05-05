@@ -151,6 +151,32 @@ class MessageDatabaseHandler:
             })
         return messages
 
+    def get_reminder_messages(self):
+        """Fetches all messages that have a reminder set (done or not done)."""
+        self.cursor.execute("""
+            SELECT id, content, timestamp, project, files, extra, processed, remind, importance, reoccurences, done
+            FROM messages
+            WHERE remind IS NOT NULL AND remind != ''
+            ORDER BY done ASC, remind ASC  -- Show active first, then ordered by time
+        """)
+        rows = self.cursor.fetchall()
+        messages = []
+        for row in rows:
+            messages.append({
+                "id": row[0],
+                "content": row[1],
+                "timestamp": row[2],
+                "project": row[3],
+                "files": row[4],
+                "extra": row[5],
+                "processed": bool(row[6]),
+                "remind": row[7],
+                "importance": row[8],
+                "reoccurences": row[9],
+                "done": bool(row[10])
+            })
+        return messages
+
     def close(self):
         if self.conn:
             self.conn.close()
