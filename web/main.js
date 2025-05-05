@@ -191,6 +191,87 @@ window.toggleModelChatSidebar = (show, context = {}) => {
 window.openModelChatSidebar = (context = {}) => window.toggleModelChatSidebar(true, context);
 window.closeModelChatSidebar = () => window.toggleModelChatSidebar(false);
 
+// --- Custom Modal Logic ---
+let modalResolve = null;
+const modalOverlay = document.getElementById('customModalOverlay');
+const modal = document.getElementById('customModal');
+const modalTitle = document.getElementById('modalTitle');
+const modalLabel = document.getElementById('modalLabel');
+const modalInput = document.getElementById('modalInput');
+const modalColorInput = document.getElementById('modalColorInput'); // Get color input
+const modalOkBtn = document.getElementById('modalOkBtn');
+const modalCancelBtn = document.getElementById('modalCancelBtn');
+
+let currentInputType = 'text'; // Track current input type
+
+function showCustomPrompt(options) {
+  // options = { title: string, label: string, initialValue: string, type: 'text' | 'color' }
+  const { title, label, initialValue = '', type = 'text' } = options;
+
+  return new Promise((resolve) => {
+    modalResolve = resolve; // Store the resolve function
+    currentInputType = type;
+
+    modalTitle.textContent = title;
+    modalLabel.textContent = label;
+
+    if (type === 'color') {
+        modalInput.style.display = 'none';
+        modalInput.style.marginBottom = '0';
+        modalColorInput.style.display = 'block';
+        modalColorInput.value = initialValue || '#ffffff'; // Default color if empty
+        modalLabel.htmlFor = 'modalColorInput';
+    } else {
+        modalColorInput.style.display = 'none';
+        modalInput.style.display = 'block';
+        modalInput.style.marginBottom = '20px';
+        modalInput.value = initialValue;
+        modalLabel.htmlFor = 'modalInput';
+        modalInput.focus();
+        modalInput.select();
+    }
+
+    document.body.classList.add('modal-open');
+  });
+}
+
+function handleModalOk() {
+  if (modalResolve) {
+    const value = (currentInputType === 'color') ? modalColorInput.value : modalInput.value;
+    modalResolve(value); // Resolve the promise with the correct input value
+  }
+  closeModal();
+}
+
+function handleModalCancel() {
+  if (modalResolve) {
+    modalResolve(null); // Resolve with null to indicate cancellation
+  }
+  closeModal();
+}
+
+function closeModal() {
+  document.body.classList.remove('modal-open');
+  modalResolve = null; // Clear the stored resolve function
+  // Reset input display states if needed, though showCustomPrompt handles it
+}
+
+// Attach listeners (only once)
+modalOkBtn.addEventListener('click', handleModalOk);
+modalCancelBtn.addEventListener('click', handleModalCancel);
+modalOverlay.addEventListener('click', handleModalCancel); // Close on overlay click
+modalInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        handleModalOk();
+    } else if (e.key === 'Escape') {
+        handleModalCancel();
+    }
+});
+
+// Expose the function globally (or pass it down)
+window.showCustomPrompt = showCustomPrompt;
+// --- End Custom Modal Logic ---
+
 // Navbar: process all messages and check projects toggle
 const processAllBtnNavbar = document.getElementById('processAllBtnNavbar');
 const checkProjectsToggleNavbar = document.getElementById('checkProjectsToggleNavbar');

@@ -6,34 +6,36 @@ export function renderProjectChat(container, api, project) {
             <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;background:${project.color || '#23272e'};">
                 <style scoped>
                     .chat-wrapper{display:flex;flex-direction:column;flex:1;min-height:0;}
-                    .project-chat-header{padding:16px 12px 10px 12px;border-radius:10px 10px 0 0;color:#000;display:flex;align-items:flex-start;}
+                    .project-chat-header{position: relative; z-index: 2; padding:16px 12px 10px 12px;border-radius:10px 10px 0 0;color:#000;display:flex;align-items:flex-start;}
                     .scrollable-list{flex:1;min-height:0;overflow-y:auto;margin:0;padding:0;list-style:none;background:#23272e;}
                     .form-container{display:flex;gap:8px;align-items:center;margin-top:8px;}
                     .form-container textarea{flex:1;resize:none;font:inherit;padding:6px 8px;background:#23272e;color:#fff;border:1px solid #444;}
                     button[disabled]{opacity:0.5;cursor:not-allowed;}
                     .loading{text-align:center;padding:1em;color:#888;}
-                    .header-actions{align-self:flex-start;display:flex;gap:6px;}
+                    .header-actions{align-self:flex-start;display:flex;gap:6px; margin-top: 4px; /* Align slightly better with title */}
                     .header-actions button {
                         background: none;
                         border: none;
-                        color: #8a8fa7;
+                        /* color: #8a8fa7; */ /* Use a lighter color */
+                        color: #adb5bd;
                         padding: 0.4em 0.8em;
                         border-radius: 4px;
                         cursor: pointer;
                         font-size: 0.9em;
-                        margin-right: 6px;
+                        /* margin-right: 6px; Removed, using gap */
                         transition: background 0.2s, color 0.2s;
                     }
                     .header-actions button:hover {
-                        background: #3a3f4b;
+                        /* background: #3a3f4b; */ /* Use slightly lighter hover */
+                        background: #343a40;
                         color: #f7f7fa;
                     }
                 </style>
                 <div class="chat-wrapper">
-                    <div class="project-chat-header" style="background:${project.color || '#dddddd'};">
+                    <div class="project-chat-header" style="border-top: 5px solid ${project.color || '#dddddd'}; background: #2a3142;">
                         <div style="flex:1;">
-                            <h2 style="margin:0 0 4px 0;">${project.name}</h2>
-                            <span class="project-desc" style="display:block;margin:2px 0 8px 0;">${project.description || ''}</span>
+                            <h2 style="margin:0 0 4px 0; color: #f0f0f0;">${project.name}</h2>
+                            <span class="project-desc" style="display:block; margin:2px 0 8px 0; color: #adb5bd;">${project.description || ''}</span>
                         </div>
                         <div class="header-actions">
                             <button type="button" id="editDescBtn">Edit Description</button>
@@ -53,7 +55,7 @@ export function renderProjectChat(container, api, project) {
                     </div>
                 </div>
             </div>
-            <div id="modelChatSidebar" style="width:320px;min-width:320px;background:#262a34;border-left:1px solid #363b47;display:flex;flex-direction:column;height:100%;"></div>
+            <div id="modelChatSidebar" style="width:350px;min-width:350px;background:#262a34;border-left:1px solid #363b47;display:flex;flex-direction:column;height:100%;"></div>
         </div>
     `;
 
@@ -86,22 +88,50 @@ export function renderProjectChat(container, api, project) {
     const editDescBtn = container.querySelector('#editDescBtn');
     if (editDescBtn) {
         editDescBtn.addEventListener('click', async () => {
-            const desc = prompt('Edit description:', project.description || '');
+            console.log('[ProjectChat] Edit Description clicked for project:', project);
+            const desc = await window.showCustomPrompt({
+                title: 'Edit Description',
+                label: 'New description:',
+                initialValue: project.description || '',
+                type: 'text'
+            });
+            console.log('[ProjectChat] New description entered:', desc);
             if (desc !== null) {
-                await api.edit_project(project.id, project.name, desc, project.color);
-                project.description = desc;
-                window.nav.projectChat(project);
+                try {
+                    await api.edit_project(project.id, project.name, desc, project.color);
+                    console.log('[ProjectChat] api.edit_project successful for description');
+                    project.description = desc; // Update local project object
+                    console.log('[ProjectChat] Updated project object:', project);
+                    window.nav.projectChat(project); // Re-render
+                } catch (error) {
+                    console.error('[ProjectChat] Error calling api.edit_project for description:', error);
+                    alert(`Failed to update description: ${error.message || error}`);
+                }
             }
         });
     }
     const editColorBtn = container.querySelector('#editColorBtn');
     if (editColorBtn) {
         editColorBtn.addEventListener('click', async () => {
-            const color = prompt('Edit color (hex):', project.color || '#dddddd');
-            if (color) {
-                await api.edit_project(project.id, project.name, project.description, color);
-                project.color = color;
-                window.nav.projectChat(project);
+            console.log('[ProjectChat] Edit Color clicked for project:', project);
+            const color = await window.showCustomPrompt({
+                title: 'Edit Color',
+                label: 'Select new color:',
+                initialValue: project.color || '#dddddd',
+                type: 'color'
+            });
+            console.log('[ProjectChat] New color entered:', color);
+            if (color !== null && color.trim() !== '') {
+                try {
+                    await api.edit_project(project.id, project.name, project.description, color);
+                    console.log('[ProjectChat] api.edit_project successful for color');
+                    project.color = color; // Update local project object
+                    console.log('[ProjectChat] Updated project object:', project);
+                    window.nav.projectChat(project); // Re-render
+                } catch (error) {
+                    console.error('[ProjectChat] Error calling api.edit_project for color:', error);
+                    alert(`Failed to update color: ${error.message || error}`);
+                }
             }
         });
     }

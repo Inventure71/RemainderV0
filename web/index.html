@@ -34,8 +34,22 @@
             </div>
         </div>
     </div>
-    <div id="app" class="content" style="flex:1;display:flex;flex-direction:column;padding:2em;padding-right:0;overflow:hidden;"></div>
+    <div id="app" class="content" style="flex:1;display:flex;flex-direction:column;padding:2em;overflow:hidden;"></div>
     <div id="modelChatSidebarOverlay" style="position:fixed;top:0;right:0;bottom:0;width:350px;z-index:9999;display:none;box-shadow:-2px 0 10px rgba(0,0,0,0.2);"></div>
+
+    <!-- Custom Modal for Input -->
+    <div id="customModalOverlay"></div>
+    <div id="customModal">
+        <h3 id="modalTitle">Modal Title</h3>
+        <label id="modalLabel" for="modalInput">Input Label:</label>
+        <input type="text" id="modalInput">
+        <input type="color" id="modalColorInput" style="display: none; width: 100%; height: 40px; margin-bottom: 15px;">
+        <div class="modal-actions">
+            <button id="modalCancelBtn">Cancel</button>
+            <button id="modalOkBtn">OK</button>
+        </div>
+    </div>
+
     <script type="module" src="main.js"></script>
 </body>
 </html>

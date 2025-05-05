@@ -34,7 +34,9 @@ body {
 }
 /* Base content padding */
 .content {
-  padding-top: 4.5em !important; /* Keep navbar space */
+  position: relative;
+  z-index: 1;
+  padding-top: 5em !important; /* Keep navbar space (Increased from 4.5em) */
   padding-bottom: 5.5em !important; /* Keep space for fixed form */
   padding-right: 2em;
   padding-left: 2em;
@@ -72,7 +74,7 @@ body.model-sidebar-visible .content {
   border-radius: 16px;
   box-shadow: 0 2px 16px #0002;
   margin-bottom: 1.2em;
-  padding: 0.7em 4.4em 0.7em 1.1em;
+  padding: 0.7em 1.5em 0.7em 1.1em;
   position: relative;
   transition: box-shadow 0.2s, background 0.2s;
 }
@@ -223,12 +225,14 @@ body.model-sidebar-visible .content {
   margin-top: 1em;
   transition: width 0.25s ease-in-out; /* Transition width */
   box-sizing: border-box; /* Include padding in width calculation */
+  /* Align items at the bottom */
+  align-items: flex-end;
 }
 
 /* Adjust form container for pages with always-visible sidebar */
 .chat-container .form-container,
 .chat-wrapper .form-container {
-  /* Adjust width to account for the always-visible sidebar (320px) */
+  /* Adjust width to account for the always-visible sidebar (350px) */
   width: calc(100% - 350px);
   /* Ensure the form doesn't extend beyond the main content area */
   max-width: calc(100vw - 350px);
@@ -245,30 +249,52 @@ body.model-sidebar-visible .form-container {
 /* When both the always-visible sidebar and the overlay are present */
 body.model-sidebar-visible .chat-container .form-container,
 body.model-sidebar-visible .chat-wrapper .form-container {
-  /* Adjust width to account for both sidebars (320px + 350px) plus extra margin */
-  width: calc(100% - 710px) !important;
+  /* Adjust width to account for both sidebars (350px + 350px) plus extra margin */
+  width: calc(100% - 710px) !important; /* 350 + 350 + 10 margin? Re-check */
   /* Ensure the form doesn't extend beyond the main content area */
   max-width: calc(100vw - 710px) !important;
 }
 textarea, input[type="text"], input[type="color"] {
-  padding: 0.5em;
-  border-radius: 4px;
-  border: 1px solid #444;
-  background: #222;
-  color: #fff;
-  flex: 1;
+  /* Combined basic styles for text inputs/areas */
+  padding: 10px;
+  border-radius: 6px; /* Slightly more rounded */
+  border: 1px solid #4a4a4a; /* Subtle border */
+  background: #252930; /* Slightly different background */
+  color: #e0e0e0;
+  font-size: 1em;
+  line-height: 1.4;
+  box-sizing: border-box;
+  flex: 1; /* Ensure flex behavior if needed */
 }
+
+textarea {
+  resize: vertical; /* Allow vertical resize */
+  min-height: 40px; /* Minimum height for single line */
+}
+
 .form-container button {
-  padding: 0.7em 1.5em;
+  /* padding: 0.7em 1.5em; */ /* Adjust padding for visual balance */
+  padding: 10px 20px;
   border: none;
-  background: #7289da;
+  /* background: #7289da; */ /* New color */
+  background: #3578e5; /* A nice blue */
   color: #fff;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
+  font-weight: bold;
+  height: 40px; /* Match input height */
+  transition: background 0.2s;
 }
 .form-container button:hover {
-  background: #5b6eae;
+  /* background: #5b6eae; */
+  background: #285eaf;
 }
+
+.form-container button[disabled] {
+    background: #555;
+    cursor: not-allowed;
+}
+
 .tag {
   margin-left: 0.75em;
   font-size: 0.85em;
@@ -435,6 +461,9 @@ textarea, input[type="text"], input[type="color"] {
     flex-direction: column;
     height: 100%; /* Fill parent (.content) */
     min-height: 0;
+    /* Inherit padding from .content to respect navbar spacing */
+    padding-top: inherit;
+    padding-bottom: inherit;
 }
 
 /* Bubble tags for time and project */
@@ -565,3 +594,98 @@ textarea, input[type="text"], input[type="color"] {
   z-index: 100;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
+
+/* Custom Modal Styles */
+#customModalOverlay {
+  display: none; /* Hidden by default */
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+}
+
+#customModal {
+  display: none; /* Hidden by default */
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #2c3e50;
+  padding: 25px 35px;
+  border-radius: 8px;
+  box-shadow: 0 5px 25px rgba(0,0,0,0.4);
+  z-index: 10001;
+  min-width: 300px;
+  max-width: 500px;
+}
+
+#customModal h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #ecf0f1;
+}
+
+#customModal label {
+  display: block;
+  margin-bottom: 5px;
+  color: #bdc3c7;
+}
+
+#customModal input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  /* margin-bottom: 20px; Adjusted dynamically */
+  border: 1px solid #34495e;
+  background-color: #34495e;
+  color: #ecf0f1;
+  border-radius: 4px;
+  box-sizing: border-box; /* Include padding in width */
+}
+
+#customModal input[type="color"] {
+    width: 100%;
+    height: 40px;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    margin-bottom: 20px; /* Add margin like the text input */
+}
+
+#customModal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+#customModal button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+#customModal #modalOkBtn {
+  background-color: #2ecc71;
+  color: white;
+}
+#customModal #modalOkBtn:hover {
+  background-color: #27ae60;
+}
+
+#customModal #modalCancelBtn {
+  background-color: #e74c3c;
+  color: white;
+}
+#customModal #modalCancelBtn:hover {
+  background-color: #c0392b;
+}
+
+/* Class to show the modal */
+body.modal-open #customModalOverlay,
+body.modal-open #customModal {
+  display: block;
+}
+
+.form-container textarea#messageContent { min-height: 50px; } /* Specific height for main input */
+.form-container textarea#messageContext { min-height: 35px; font-size: 0.9em; } /* Smaller context */
