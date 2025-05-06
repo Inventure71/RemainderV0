@@ -1,5 +1,6 @@
 import base64
 import os
+import sys
 from google import genai
 from google.genai import types
 import json as _json
@@ -14,8 +15,19 @@ class ModelClient:
         self.model_context_window = model_context_window
 
         if mode == "gemini":
+            # Determine base path for data files
+            if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                # Running in a PyInstaller bundle
+                base_path = sys._MEIPASS
+            else:
+                # Running in a normal Python environment
+                # Assuming model_handler.py is in Utils/ and API_keys is at the project root
+                base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+
+            api_key_path = os.path.join(base_path, "API_keys", "gemini_api_key.json")
+
             # load key from json file
-            with open("API_keys/gemini_api_key.json", "rb") as f:
+            with open(api_key_path, "rb") as f:
                 self.api_key = f.read().decode("utf-8")
 
             self.gemini_client = genai.Client(
@@ -259,21 +271,25 @@ class ModelClient:
                             type=genai.types.Type.ARRAY,
                             items=genai.types.Schema(
                                 type=genai.types.Type.OBJECT,
-                                required=["id", "why"],
+                                required=["id", "first_words", "explanation"],
                                 properties={
                                     "id": genai.types.Schema(
-                                        type=genai.types.Type.INTEGER,
-                                    ),
-                                    "content": genai.types.Schema(
                                         type=genai.types.Type.STRING,
+                                        description="The ID of the message (can be string or int-as-string)."
                                     ),
-                                    "why": genai.types.Schema(
+                                    "first_words": genai.types.Schema(
                                         type=genai.types.Type.STRING,
+                                        description="The first few (up to 5) words of the message content."
+                                    ),
+                                    "explanation": genai.types.Schema(
+                                        type=genai.types.Type.STRING,
+                                        description="Brief justification for why this message is relevant."
                                     ),
                                 },
                             ),
                         ),
                     },
+                    required=["messages"]
                 ),
                 system_instruction=[
                     types.Part.from_text(

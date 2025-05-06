@@ -1,9 +1,37 @@
 import sqlite3
 import os
+import sys # Import sys
 
 class MessageDatabaseHandler:
-    def __init__(self, db_name="Databases/messages.db"):
-        self.db_name = db_name
+    def __init__(self, db_name=None):
+        if db_name is None:
+            # Determine base path for data files
+            if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                # Running in a PyInstaller bundle or similar
+                # For writable data, always use a user-specific directory
+                app_support_dir = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', 'RemainderApp')
+            else:
+                # Running in a normal Python environment, still good practice to define
+                # a clear data directory, perhaps relative to project for dev,
+                # but for consistency let's use App Support here too, or a local "Databases" for dev.
+                # For simplicity in this refactor, we'll point to a local "Databases" dir for dev.
+                # If you want dev to also use App Support, uncomment the line above.
+                # app_support_dir = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', 'RemainderApp')
+                # Using local "Databases" for non-frozen (dev) mode:
+                app_support_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Databases")
+
+
+            os.makedirs(app_support_dir, exist_ok=True) # Ensure the directory exists
+            self.db_name = os.path.join(app_support_dir, "messages.db")
+        else:
+            # If a db_name is explicitly passed, use it (e.g., for tests with in-memory DB)
+            self.db_name = db_name
+            # Ensure directory for explicitly passed db_name also exists if it's a file path
+            db_dir = os.path.dirname(self.db_name)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir, exist_ok=True)
+
+
         self.conn = None
         self.cursor = None
         self._connect()

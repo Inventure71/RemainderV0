@@ -10,6 +10,7 @@ export function renderMainChat(container, api) {
                 <style scoped>
                     .chat-container{display:flex;flex-direction:column;flex:1;min-height:0;}
                     .scrollable-list{flex:1;min-height:0;overflow-y:auto;margin:0;padding:0;list-style:none;background:#23272e;}
+                    .chat-options{margin-bottom: 8px; padding-left: 5px; color: #ccc; font-size: 0.9em;}
                     .form-container{display:flex;gap:8px;align-items:stretch;margin-top:8px;} /* Align items stretch */
                     .input-area{display:flex;flex-direction:column;flex:1;gap:8px;}
                     .form-container textarea{flex:1;resize:none;font:inherit;padding:6px 8px;background:#23272e;color:#fff;border:1px solid #444;}
@@ -24,6 +25,10 @@ export function renderMainChat(container, api) {
                 </style>
                 <div class="chat-container">
                     <h2 style="color:#f7f7fa;">Main Chat</h2>
+                    <div class="chat-options">
+                        <input type="checkbox" id="showClipsFilter" />
+                        <label for="showClipsFilter">Show Saved Clips in Main Chat</label>
+                    </div>
                     <div id="messagesLoading" class="loading" hidden>Loading…</div>
                     <ul id="messagesList" class="scrollable-list"></ul>
                     <div id="mainChatError" style="color:#ff5252;margin:8px 0 0 0;"></div>
@@ -55,6 +60,7 @@ export function renderMainChat(container, api) {
     const attachFileBtn = container.querySelector('#attachFileBtn');
     const selectedFilesPreview = container.querySelector('#selectedFilesPreview');
     const inputArea = container.querySelector('.input-area');
+    const showClipsCheckbox = container.querySelector('#showClipsFilter'); // Get checkbox
 
     // Helper function to handle files from various sources (dialog, drag-drop, paste)
     function handleFiles(files) {
@@ -205,7 +211,36 @@ export function renderMainChat(container, api) {
         updateSendBtnState(); // Update button state after clearing files
     }));
 
-    loadMessages(api);
+    // Initialize clipboard filter state and load initial messages
+    if (api && typeof api.get_clipboard_filter_state === 'function') {
+        api.get_clipboard_filter_state().then(response => {
+            if (response && typeof response.show_clips_in_main_chat === 'boolean') {
+                showClipsCheckbox.checked = response.show_clips_in_main_chat;
+            }
+        }).catch(err => {
+            console.error("Error getting initial clipboard filter state:", err);
+        }).finally(() => {
+            loadMessages(api); // Load messages after attempting to set filter state
+        });
+    } else {
+        console.warn("API for clipboard filter not available, loading messages with default state.");
+        loadMessages(api); // Fallback if API is not ready or method doesn't exist
+    }
+
+    // Add event listener for the checkbox
+    showClipsCheckbox.addEventListener('change', async () => {
+        try {
+            if (api && typeof api.toggle_clipboard_filter_state === 'function') {
+                await api.toggle_clipboard_filter_state(showClipsCheckbox.checked);
+                loadMessages(api); // Reload messages with the new filter state
+            } else {
+                console.error("API to toggle clipboard filter not available.");
+            }
+        } catch (err) {
+            console.error("Error toggling clipboard filter state:", err);
+            // Optionally, revert checkbox state or show an error to the user
+        }
+    });
 }
 
 async function sendMessage(api, textarea, sendBtn, imageFiles, clearFilesCallback) {

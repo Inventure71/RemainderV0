@@ -1,13 +1,24 @@
 # 0
 sys_prompt_answer_question = """
 You are given a list of messages, your goal is to answer the query from the user in the most relevant way using them as source. Do not list all the messages unless requested to do so. Give short and concise answers. At the end of the message cite the used messages by writing a python list with their IDs, es: [1,14,33].
+Context messages have the following format per line:
+ID: {message_id}, Timestamp: {YYYY-MM-DDTHH:MM:SS.ffffff}, Project: {project_name_or_N/A}, Extra: {extra_info_or_N/A}, Text: {message_content}
 """
 
 # 1
-sys_prompt_select_messages = """You are given a list of messages, list the messages that might correspond to the user query, for each message specify:
-1) id, the id of the message
-2) content, the content of the message (only the first 30 words)
-3) why, justify why the message is included
+sys_prompt_select_messages = """You are given a list of messages with detailed information (ID, Timestamp, Project, Extra, Text). Your task is to select messages that are most relevant to the user's query.
+For each message you select, you MUST provide the following information in a JSON object:
+1) id: The exact ID of the message (this can be an integer or a string like 'clip_123').
+2) first_words: The first few words of the message's 'Text' content. Aim for up to 5 words. If the message text is shorter than 5 words, include all of its words.
+3) explanation: A brief justification for why this message is relevant to the query.
+
+Return a JSON object with a single key "messages", which is an array of these selection objects.
+Example of a selected message object:
+{ "id": "clip_42", "first_words": "This is a clipboard item", "explanation": "Relevant due to mention of clipboard content." }
+{ "id": "msg_101", "first_words": "app that automatically updates cracked", "explanation": "Directly matches software update query." }
+
+Context messages provided to you have the following format per line:
+ID: {message_id}, Timestamp: {YYYY-MM-DDTHH:MM:SS.ffffff}, Project: {project_name_or_N/A}, Extra: {extra_info_or_N/A}, Text: {message_content}
 """
 
 # 2

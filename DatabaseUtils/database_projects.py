@@ -1,11 +1,29 @@
 import sqlite3
 import os
+import sys # Import sys
 
 class ProjectsDatabaseHandler:
     _projects = None
 
-    def __init__(self, db_name="Databases/projects.db"):
-        self.db_name = db_name
+    def __init__(self, db_name=None):
+        if db_name is None:
+            # Determine base path for data files
+            if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                # Running in a PyInstaller bundle or similar
+                app_support_dir = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', 'RemainderApp')
+            else:
+                # Using local "Databases" for non-frozen (dev) mode:
+                app_support_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Databases")
+
+            os.makedirs(app_support_dir, exist_ok=True) # Ensure the directory exists
+            self.db_name = os.path.join(app_support_dir, "projects.db")
+        else:
+            # If a db_name is explicitly passed, use it
+            self.db_name = db_name
+            db_dir = os.path.dirname(self.db_name)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir, exist_ok=True)
+
         self.conn = None
         self.cursor = None
         self._connect()

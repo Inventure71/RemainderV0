@@ -22,6 +22,9 @@ export function renderModelChatSidebar(container, context = {}) {
             .model-chat-input-row button { background: #3578e5; color: #fff; border: none; border-radius: 4px; padding: 0.5em 1.2em; font-weight: bold; cursor: pointer; white-space: nowrap; }
             .model-chat-input-row .toggle { display: flex; align-items: center; gap: 0.3em; font-size: 0.97em; color: #c9c9d9; }
             .sidebar-project-name { font-size: 0.85em; color: #b0b0c0; font-weight: normal; margin-left: 0.3em; }
+            .selected-message-item { padding: 0.5em 1em 0.5em 0.7em; border-radius: 5px; word-wrap: break-word; max-width: 100%; box-sizing: border-box; }
+            .likelihood-high { background: #282c34; }
+            .likelihood-low { background: #303540; }
         </style>
         <div class="model-chat-sidebar">
             <div class="model-chat-sidebar-inner">
@@ -107,15 +110,32 @@ export function renderModelChatSidebar(container, context = {}) {
                 }
                 if (related.length > 0) {
                     related.forEach(m => {
-                        // Sanitize content to prevent HTML injection issues
-                        const safeContent = (m.content || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                        const safeExplanation = (m.explanation || m.why || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        // m is now: { id, content_preview, first_words_model_raw, first_words_model_compared_segment, first_words_actual_compared_segment, explanation, likelihood, original_message_data }
+                        const safeContentPreview = (m.content_preview || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        const safeExplanation = (m.explanation || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        const safeModelFirstWords = (m.first_words_model_raw || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        
+                        let likelihoodIndicator = '';
+                        let likelihoodClass = 'likelihood-high'; // CSS class for styling
+                        if (m.likelihood === 'less likely') {
+                            likelihoodIndicator = '<span style="color:orange; font-style:italic; font-size:0.9em;">(Less Likely Match)</span> ';
+                            likelihoodClass = 'likelihood-low';
+                        }
+
+                        const displayContent = safeContentPreview.length > 150 ? safeContentPreview.substring(0, 150) + '...' : safeContentPreview;
+
                         const messageHtml = `
-                            ${safeContent}
-                            <div class="message-explanation">Explanation: ${safeExplanation}</div>
-                            <span class="view-original-link" data-msg-id="${m.id}">(view original)</span>
+                            <div class="selected-message-item ${likelihoodClass}">
+                                ${likelihoodIndicator}
+                                <div><strong>ID:</strong> ${m.id}</div>
+                                <div><strong>Preview:</strong> ${displayContent}</div>
+                                <div class="message-explanation"><strong>Explanation:</strong> ${safeExplanation}</div>
+                                <div><small><em>Model claimed first words: "${safeModelFirstWords}"</em></small></div>
+                                <span class="view-original-link" data-msg-id="${m.id}">(view original)</span>
+                            </div>
                         `;
-                        renderMessage('model', messageHtml);
+                        
+                        renderMessage('model', messageHtml); // Pass the HTML string to renderMessage
                     });
                 } else {
                      renderMessage('model', 'No specific messages selected based on your prompt.');

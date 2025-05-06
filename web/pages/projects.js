@@ -125,12 +125,14 @@ function loadProjects(api, onProjectSelect) {
     const currentApi = api || window.pywebview?.api;
 
     // Defensive: check api exists
-    if (!currentApi || typeof currentApi.get_all_projects !== 'function') {
+    if (!currentApi || typeof currentApi.get_all_projects !== 'function' || typeof currentApi.get_reminder_messages !== 'function') { // Added check for get_reminder_messages
         if (loadingDiv) loadingDiv.hidden = true;
         grid.innerHTML = '<div style="color:#ff5252">API not available. Retrying in 1s...</div>';
         setTimeout(() => loadProjects(currentApi, onProjectSelect), 1000);
         return;
     }
+    
+    const CLIPBOARD_PROJECT_NAME = "Saved Clips"; // Name of the clipboard project
 
     // Promise.allSettled to load both regular projects and reminders concurrently
     Promise.allSettled([
@@ -139,19 +141,19 @@ function loadProjects(api, onProjectSelect) {
     ]).then(results => {
         // Clear loading/error messages
         if (loadingDiv) loadingDiv.hidden = true;
-        // grid.innerHTML = ''; // Already cleared above
-
+        
+        let hasAnyContentInSpecial = false;
         let hasRegularContent = false;
 
         // --- Render Reminders Project (if successful and reminders exist) ---
         const reminderResult = results[1];
         if (reminderResult.status === 'fulfilled' && reminderResult.value && Array.isArray(reminderResult.value)) {
-            // Always show the box, even if empty for now, or check length > 0
             const reminders = reminderResult.value;
-             if (reminders.length > 0) { // Only show if there are reminders
+             if (reminders.length > 0) { 
+                hasAnyContentInSpecial = true;
                 const box = document.createElement('div');
-                box.className = 'project-box reminders-box'; // Add specific class for styling
-                const bgColor = '#f0e68c'; // Khaki color for distinction
+                box.className = 'project-box reminders-box'; 
+                const bgColor = '#f0e68c'; 
                 const textColor = getContrastYIQ(bgColor);
                 box.style.background = bgColor;
                 box.style.color = textColor;
@@ -162,22 +164,65 @@ function loadProjects(api, onProjectSelect) {
                     <div class="project-name">Reminders (${reminders.length})</div>
                     <div class="project-actions"></div>
                 `;
-                box.addEventListener('click', () => onProjectSelect({ id: '__reminders__', name: 'Reminders' })); // Special ID
-                specialContainer.appendChild(box); // Append to special container
+                box.addEventListener('click', () => onProjectSelect({ id: '__reminders__', name: 'Reminders' })); 
+                specialContainer.appendChild(box);
             }
         } else if (reminderResult.status === 'rejected') {
             console.error("Failed to load reminders:", reminderResult.reason);
-            specialContainer.innerHTML = '<div style="color:#ffcc00; flex-basis: 100%;">Failed to load reminders.</div>'; // Show error in special container
+            // Create an error display for reminders in special container
+            const errorDiv = document.createElement('div');
+            errorDiv.style.color = '#ffcc00';
+            errorDiv.style.flexBasis = '100%';
+            errorDiv.textContent = 'Failed to load reminders.';
+            specialContainer.appendChild(errorDiv);
+            hasAnyContentInSpecial = true; // Still content (error message)
         }
-        // Add other special projects here if needed in the future
+
+        // --- Process All Projects (including Clipboard and Regular) ---
+        const projectResult = results[0];
+        let regularProjects = [];
+        let clipboardProject = null;
+
+        if (projectResult.status === 'fulfilled' && projectResult.value && Array.isArray(projectResult.value)) {
+            const allFetchedProjects = projectResult.value;
+            allFetchedProjects.forEach(proj => {
+                if (proj.name === CLIPBOARD_PROJECT_NAME) {
+                    clipboardProject = proj;
+                } else {
+                    regularProjects.push(proj);
+                }
+            });
+
+            // --- Render Clipboard Project (if found) ---
+            if (clipboardProject) {
+                hasAnyContentInSpecial = true;
+                const box = document.createElement('div');
+                box.className = 'project-box clipboard-box'; // Add specific class for styling
+                const bgColor = clipboardProject.color || '#A7C7E7'; // Use project's color or default
+                const textColor = getContrastYIQ(bgColor);
+                box.style.background = bgColor;
+                box.style.color = textColor;
+                box.setAttribute('role', 'button');
+                box.setAttribute('tabindex', '0');
+                box.innerHTML = `
+                    <div class="project-icon">${clipboardProject.emoji || '📋'}</div>
+                    <div class="project-name">${clipboardProject.name}</div>
+                    <div class="project-actions"></div>
+                `;
+                box.addEventListener('click', () => onProjectSelect(clipboardProject));
+                specialContainer.appendChild(box);
+            }
+        } else if (projectResult.status === 'rejected') {
+            console.error("Failed to load projects:", projectResult.reason);
+             // Error for all projects will be handled below with regular projects grid
+        }
+
 
         // --- Render Regular Projects (if successful) ---
-        const projectResult = results[0];
-        if (projectResult.status === 'fulfilled' && projectResult.value && Array.isArray(projectResult.value)) {
-            const projects = projectResult.value;
-            if (projects.length > 0) {
+        if (projectResult.status === 'fulfilled') { // Check status again for clarity
+            if (regularProjects.length > 0) {
                 hasRegularContent = true;
-                projects.forEach(proj => {
+                regularProjects.forEach(proj => {
                     const box = document.createElement('div');
                     box.className = 'project-box';
                     const bgColor = proj.color || '#dddddd';
@@ -211,15 +256,20 @@ function loadProjects(api, onProjectSelect) {
                     grid.appendChild(box); // Append to regular grid
                 });
             }
-        } else if (projectResult.status === 'rejected') {
-            console.error("Failed to load projects:", projectResult.reason);
-            grid.innerHTML += '<div style="color:#ff5252; grid-column: 1 / -1;">Failed to load projects.</div>'; // Span full grid width
+        }
+        
+        // --- Handle Error for All Projects (if projectResult failed) ---
+        if (projectResult.status === 'rejected') {
+             grid.innerHTML = '<div style="color:#ff5252; grid-column: 1 / -1;">Failed to load projects.</div>';
         }
 
-        // --- Handle Empty State for Regular Projects ---
-        if (!hasRegularContent) {
-             grid.innerHTML = '<div style="color:#bbb;text-align:center;padding:2em 0; grid-column: 1 / -1;">No user projects found.</div>'; // Span full grid width
+
+        // --- Handle Empty State for Regular Projects Grid ---
+        if (!hasRegularContent && projectResult.status === 'fulfilled') { // Only show if projects loaded successfully but were empty
+             grid.innerHTML = '<div style="color:#bbb;text-align:center;padding:2em 0; grid-column: 1 / -1;">No user projects found. Add one below!</div>';
         }
+        
+        // If special container is empty, it just won't show anything, which is fine.
 
     }).catch(e => { // Catch errors from Promise.allSettled itself (unlikely)
         if (loadingDiv) loadingDiv.hidden = true;
