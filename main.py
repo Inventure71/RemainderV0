@@ -33,12 +33,37 @@ CLIPBOARD_PROJECT_EMOJI = "📋"
 CLIPBOARD_PROJECT_COLOR = "#A7C7E7"
 CLIPBOARD_PROJECT_DESCRIPTION = "Messages automatically saved from clipboard."
 
+# --- Settings File Configuration ---
+SETTINGS_FILE_NAME = "settings.json"
+
+def get_app_support_dir():
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        return os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', 'RemainderApp')
+    else:
+        # For development, place it in the workspace root for easier access.
+        # Adjust if a "Databases" or similar subfolder is preferred for dev settings too.
+        return os.getcwd() 
+
+def get_settings_file_path():
+    return os.path.join(get_app_support_dir(), SETTINGS_FILE_NAME)
+
+DEFAULT_SETTINGS = {
+    "clipboard_save_count": 5,
+    # Add other future settings here
+}
+# --- End Settings File Configuration ---
+
 class Api:
     def __init__(self):
         self._message_cache = {}
         self._chat_history_cache = {}
         self._check_projects = False
         self._show_clips_in_main_chat = False # New filter state, default to false
+        
+        # --- Load Application Settings ---
+        self.settings = self._load_settings()
+        # --- End Load Application Settings ---
+
         reminder_scheduler.start()
 
         self.image_upload_folder_name = os.path.join("uploads", "message_images")
@@ -845,12 +870,64 @@ class Api:
             print(traceback.format_exc())
             return {'success': False, 'error': str(e), 'traceback': traceback.format_exc()}
 
+    # --- Settings Management ---
+    def _load_settings(self):
+        settings_path = get_settings_file_path()
+        try:
+            if os.path.exists(settings_path):
+                with open(settings_path, 'r') as f:
+                    loaded_settings = json.load(f)
+                    # Ensure all default keys are present
+                    final_settings = DEFAULT_SETTINGS.copy()
+                    final_settings.update(loaded_settings)
+                    return final_settings
+            else:
+                # If settings file doesn't exist, save default settings
+                self._save_settings(DEFAULT_SETTINGS)
+                return DEFAULT_SETTINGS.copy()
+        except Exception as e:
+            print(f"[Error] Failed to load settings from {settings_path}: {e}. Using default settings.")
+            return DEFAULT_SETTINGS.copy()
+
+    def _save_settings(self, settings_data):
+        settings_path = get_settings_file_path()
+        try:
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+            with open(settings_path, 'w') as f:
+                json.dump(settings_data, f, indent=4)
+            print(f"Settings saved to {settings_path}")
+        except Exception as e:
+            print(f"[Error] Failed to save settings to {settings_path}: {e}")
+
+    def get_app_settings(self):
+        """Returns all current application settings."""
+        return {"success": True, "settings": self.settings}
+
+    def update_setting(self, key, value):
+        """Updates a specific application setting."""
+        if key in self.settings:
+            self.settings[key] = value
+            self._save_settings(self.settings)
+            
+            # If the clipboard_save_count is updated, we might need to restart or update the monitor.
+            # For now, the monitor will use the value at its initialization.
+            # A more advanced implementation might signal the monitor to update its config.
+            if key == "clipboard_save_count":
+                print(f"Setting '{key}' updated to {value}. Restart clipboard monitor or app for changes to take full effect if already running.")
+            
+            return {"success": True, "message": f"Setting '{key}' updated to {value}."}
+        else:
+            return {"success": False, "error": f"Setting key '{key}' not found."}
+    # --- End Settings Management ---
+
 if __name__ == '__main__':
     api = Api()
     
     # Initialize the clipboard manager (must be on main thread before webview.start)
     # The initialize_clipboard_manager itself handles sys.platform check.
-    clipboard_manager_instance = initialize_clipboard_manager(api)
+    clipboard_save_count = api.settings.get("clipboard_save_count", DEFAULT_SETTINGS["clipboard_save_count"])
+    clipboard_manager_instance = initialize_clipboard_manager(api_client=api, consecutive_copies_needed=clipboard_save_count)
 
     def on_window_closing(): # Renamed for clarity with pywebview event name
         print("Main window is closing. Initiating clipboard manager shutdown.")
