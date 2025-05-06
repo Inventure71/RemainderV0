@@ -57,23 +57,34 @@ export function renderModelChatSidebar(container, context = {}) {
 
     function renderMessage(role, content, msgIdForLink = null, targetProjectNameForLink = null) {
         // Add to internal history *only* for generic chat context
-        if (role === 'user' || (role === 'model' && modeSelect.value === 'generic')) {
-             chatHistory.push({ role: role === 'user' ? 'user' : 'model', content: content });
+        if (!msgIdForLink) { // Only track normal messages, not selected ones
+            chatHistory.push({role, content});
         }
 
         const item = document.createElement('div');
-        item.className = `message-item ${role}-message`; // General class
-        
-        // If it's a model message from selection, content is already structured HTML
-        // For other messages, wrap content.
-        let finalHtmlContent = content;
-        if (role === 'model' && msgIdForLink) { // This condition means it's a selectable item
-            item.classList.add('selected-message-item'); // Add specific class for selected items
-            // The content IS the structured HTML for selected items
-        } else {
-            finalHtmlContent = `<span class="message-role ${role}-role">${role === 'user' ? 'You' : 'Model'}:</span><div>${content}</div>`;
+        if (role === 'user') {
+            item.classList.add('user-message', 'message-item');
+            item.innerHTML = `
+                <div class="user-icon">👤</div>
+                <div class="message-content">${content}</div>
+            `;
+        } else if (role === 'model') {
+            item.classList.add('model-message', 'message-item');
+            let formattedContent = content;
+            if (typeof content === 'string') {
+                formattedContent = content.replace(/\n/g, '<br>');
+            }
+            item.innerHTML = `
+                <div class="model-icon">🤖</div>
+                <div class="message-content">${formattedContent}</div>
+            `;
+        } else if (role === 'selected') {
+            // For selected messages from model_select_messages response
+            item.classList.add('selected-message-item', 'message-item');
+            item.innerHTML = `
+                <div class="selected-message-content-item">${content}</div>
+            `;
         }
-        item.innerHTML = finalHtmlContent;
 
         // Attach click handler for navigation if msgIdForLink is provided (for selected items)
         if (msgIdForLink) {
@@ -103,7 +114,9 @@ export function renderModelChatSidebar(container, context = {}) {
         }
 
         messagesDiv.appendChild(item);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll
+        
+        // Auto-scroll to the latest message (bottom)
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
     sendBtn.onclick = async () => {

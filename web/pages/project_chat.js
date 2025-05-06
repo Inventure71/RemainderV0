@@ -617,11 +617,18 @@ function loadProjectMessages(api, project) {
             if (loadingDiv) loadingDiv.hidden = true;
             return;
         }
-        messages.forEach(msgData => {
+        
+        // Reverse the messages array to display oldest first, newest last
+        const sortedMessages = [...messages].reverse();
+        
+        sortedMessages.forEach(msgData => {
             const msg = new Message(msgData, api);
             ul.appendChild(msg.render());
         });
+        
+        // Auto-scroll to the latest message (bottom)
         ul.scrollTop = ul.scrollHeight;
+        
         if (loadingDiv) loadingDiv.hidden = true;
     }).catch(e => {
         if (loadingDiv) loadingDiv.hidden = true;
