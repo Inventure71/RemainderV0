@@ -16,15 +16,16 @@ export function renderModelChatSidebar(container, context = {}) {
             .user-role { color: #6cf; }
             .model-role { color: #ffb347; }
             .message-explanation { color: #b5b5c7; margin-top: 0.3em; font-style: italic; }
-            .view-original-link { color: #8af; cursor: pointer; text-decoration: underline; margin-left: 0.5em; font-size: 0.9em; }
+            .view-original-link { color: #8af; cursor: pointer; text-decoration: underline; margin-left: 0.5em; font-size: 0.9em; display: block; margin-top: 4px; }
             .model-chat-input-row { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; margin-top: 0.7em; }
             .model-chat-input-row input { flex: 1; min-width: 150px; padding: 0.5em 0.8em; border-radius: 4px; border: 1px solid #44495a; background: #23272e; color: #fff; }
             .model-chat-input-row button { background: #3578e5; color: #fff; border: none; border-radius: 4px; padding: 0.5em 1.2em; font-weight: bold; cursor: pointer; white-space: nowrap; }
             .model-chat-input-row .toggle { display: flex; align-items: center; gap: 0.3em; font-size: 0.97em; color: #c9c9d9; }
             .sidebar-project-name { font-size: 0.85em; color: #b0b0c0; font-weight: normal; margin-left: 0.3em; }
-            .selected-message-item { padding: 0.5em 1em 0.5em 0.7em; border-radius: 5px; word-wrap: break-word; max-width: 100%; box-sizing: border-box; }
+            .selected-message-content-item { padding: 0.4em; border-radius: 4px; }
+            .selected-message-item { border-radius: 5px; word-wrap: break-word; max-width: 100%; box-sizing: border-box; cursor: pointer; }
             .likelihood-high { background: #282c34; }
-            .likelihood-low { background: #303540; }
+            .likelihood-low { background: #3a3f4b; border-left: 3px solid orange; padding-left: 0.5em; }
         </style>
         <div class="model-chat-sidebar">
             <div class="model-chat-sidebar-inner">
@@ -54,33 +55,50 @@ export function renderModelChatSidebar(container, context = {}) {
 
     let chatHistory = []; // Keep track of raw history for generic chat
 
-    function renderMessage(role, content) {
+    function renderMessage(role, content, msgIdForLink = null, targetProjectNameForLink = null) {
         // Add to internal history *only* for generic chat context
         if (role === 'user' || (role === 'model' && modeSelect.value === 'generic')) {
              chatHistory.push({ role: role === 'user' ? 'user' : 'model', content: content });
         }
 
         const item = document.createElement('div');
-        item.className = `message-item ${role}-message`;
-        item.innerHTML = `<span class="message-role ${role}-role">${role === 'user' ? 'You' : 'Model'}:</span><div>${content}</div>`;
+        item.className = `message-item ${role}-message`; // General class
+        
+        // If it's a model message from selection, content is already structured HTML
+        // For other messages, wrap content.
+        let finalHtmlContent = content;
+        if (role === 'model' && msgIdForLink) { // This condition means it's a selectable item
+            item.classList.add('selected-message-item'); // Add specific class for selected items
+            // The content IS the structured HTML for selected items
+        } else {
+            finalHtmlContent = `<span class="message-role ${role}-role">${role === 'user' ? 'You' : 'Model'}:</span><div>${content}</div>`;
+        }
+        item.innerHTML = finalHtmlContent;
 
-        // Attach click handler if it's a model message containing a link
-        const link = item.querySelector('.view-original-link');
-        if (link) {
-            link.addEventListener('click', () => {
-                const id = link.dataset.msgId;
-                console.log(`[Sidebar] Link clicked for msgId: ${id}, context project:`, context.project);
-                // Determine current chat context
-                const inProjectChat = window.selectedProject && context.project && window.selectedProject.name === context.project.name;
-                const inMainChat = !context.project && (!window.selectedProject || !window.selectedProject.name);
-                // Navigate only if not already in the correct chat
-                if (context.project && !inProjectChat) {
-                    window.nav.projectChat(context.project);
-                } else if (!context.project && !inMainChat) {
-                    window.nav.mainChat();
+        // Attach click handler for navigation if msgIdForLink is provided (for selected items)
+        if (msgIdForLink) {
+            item.style.cursor = 'pointer'; // Explicitly set cursor for the whole item
+            item.addEventListener('click', () => {
+                console.log(`[Sidebar] Clicked selected item for msgId: ${msgIdForLink}, target project: ${targetProjectNameForLink}`);
+                const currentSidebarProjectName = context.project?.name;
+
+                if (targetProjectNameForLink && targetProjectNameForLink !== "null" && targetProjectNameForLink !== "undefined") { // Message is in a specific project
+                    if (currentSidebarProjectName !== targetProjectNameForLink) {
+                        const projectToNav = window.ALL_PROJECTS_CACHE?.find(p => p.name === targetProjectNameForLink);
+                        if (projectToNav) {
+                            window.nav.projectChat(projectToNav);
+                        } else {
+                            console.warn(`Project object for '${targetProjectNameForLink}' not found for navigation. Cannot switch views.`);
+                            // Attempt to scroll anyway if view switch fails but somehow context is right (unlikely)
+                        }
+                    } // else: already in the correct project view
+                } else { // Message is in main chat (targetProjectNameForLink is null, undefined, or empty string)
+                    if (currentSidebarProjectName) { // If sidebar is currently in a project view, switch to main chat
+                        window.nav.mainChat();
+                    }
+                    // else: already in main chat view or main chat context in sidebar
                 }
-                // Use the improved scrollToMessage function directly
-                window.scrollToMessage(id);
+                setTimeout(() => window.scrollToMessage(msgIdForLink), 100); // Delay for view switch
             });
         }
 
@@ -97,10 +115,16 @@ export function renderModelChatSidebar(container, context = {}) {
         let responseContent = '';
         try {
             if (modeSelect.value === 'select') {
-                // Call backend Gemini select messages
+                console.log("[Sidebar onClick] Context object:", context);
+                if (context && context.project) {
+                    console.log("[Sidebar onClick] context.project object:", context.project);
+                    console.log("[Sidebar onClick] context.project.name:", context.project.name);
+                } else {
+                    console.log("[Sidebar onClick] context.project is null or undefined.");
+                }
                 const allMessages = await window.pywebview?.api?.get_all_messages(context.project?.name || null) || [];
-                const msgText = allMessages.map(m => m.content).join('\n');
-                const res = await window.pywebview?.api?.model_select_messages(prompt, msgText);
+                const msgText = allMessages.map(m => m.content).join('\n'); // msgText is still used by model_select_messages if prompt is empty
+                const res = await window.pywebview?.api?.model_select_messages(prompt, msgText, null, context.project?.name || null);
                 let related = [];
                 if (res && res.result) {
                     try {
@@ -110,32 +134,28 @@ export function renderModelChatSidebar(container, context = {}) {
                 }
                 if (related.length > 0) {
                     related.forEach(m => {
-                        // m is now: { id, content_preview, first_words_model_raw, first_words_model_compared_segment, first_words_actual_compared_segment, explanation, likelihood, original_message_data }
                         const safeContentPreview = (m.content_preview || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
                         const safeExplanation = (m.explanation || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                        const safeModelFirstWords = (m.first_words_model_raw || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
                         
                         let likelihoodIndicator = '';
-                        let likelihoodClass = 'likelihood-high'; // CSS class for styling
+                        let likelihoodClass = 'likelihood-high';
                         if (m.likelihood === 'less likely') {
-                            likelihoodIndicator = '<span style="color:orange; font-style:italic; font-size:0.9em;">(Less Likely Match)</span> ';
+                            likelihoodIndicator = '<span style="color:orange; font-style:italic; font-size:0.9em;">(Less Likely)</span> ';
                             likelihoodClass = 'likelihood-low';
                         }
+                        const displayContent = safeContentPreview.length > 120 ? safeContentPreview.substring(0, 120) + '...' : safeContentPreview;
+                        const targetProjectName = m.original_message_data?.project || '';
 
-                        const displayContent = safeContentPreview.length > 150 ? safeContentPreview.substring(0, 150) + '...' : safeContentPreview;
-
-                        const messageHtml = `
-                            <div class="selected-message-item ${likelihoodClass}">
+                        // Simplified HTML for the selected message content
+                        const messageInnerHtml = `
+                            <div class="selected-message-content-item ${likelihoodClass}">
                                 ${likelihoodIndicator}
-                                <div><strong>ID:</strong> ${m.id}</div>
-                                <div><strong>Preview:</strong> ${displayContent}</div>
-                                <div class="message-explanation"><strong>Explanation:</strong> ${safeExplanation}</div>
-                                <div><small><em>Model claimed first words: "${safeModelFirstWords}"</em></small></div>
-                                <span class="view-original-link" data-msg-id="${m.id}">(view original)</span>
+                                <div>${displayContent}</div>
+                                <div class="message-explanation">${safeExplanation}</div>
                             </div>
                         `;
-                        
-                        renderMessage('model', messageHtml); // Pass the HTML string to renderMessage
+                        // Pass the ID and project for navigation to renderMessage
+                        renderMessage('model', messageInnerHtml, m.id, targetProjectName);
                     });
                 } else {
                      renderMessage('model', 'No specific messages selected based on your prompt.');
