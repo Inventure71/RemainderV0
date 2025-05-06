@@ -9,6 +9,12 @@ import DatabaseUtils.database_messages as db_messages
 import DatabaseUtils.database_projects as db_projects
 from Utils.model_handler import ModelClient
 from Utils import telegram_utils
+from Utils.reminder_scheduler import ReminderScheduler
+from datetime import datetime
+from werkzeug.utils import secure_filename
+import base64
+import uuid
+import re
 
 # --- Pywebview API glue ---
 try:
@@ -18,6 +24,7 @@ except ImportError:
 
 # --- Model and DB logic ---
 model_handler = ModelClient(mode="gemini", model_context_window=500000)
+reminder_scheduler = ReminderScheduler()
 
 class Api:
     def __init__(self):
@@ -27,6 +34,120 @@ class Api:
         self._chat_history_cache = {}
         # Toggle state for checking projects
         self._check_projects = False
+        # Start the reminder scheduler
+        reminder_scheduler.start()
+
+        # Ensure upload directory exists INSIDE web directory
+        self.image_upload_folder_name = os.path.join("uploads", "message_images") # Relative to web root
+        self.image_actual_save_path_base = os.path.join("web", self.image_upload_folder_name)
+        if not os.path.exists(self.image_actual_save_path_base):
+            os.makedirs(self.image_actual_save_path_base, exist_ok=True)
+
+    def getFileDialog(self, options=None):
+        """
+        Open a native file dialog to select one or multiple files.
+        
+        Args:
+            options (dict): Options for the file dialog, including:
+                - allow_multiple (bool): Whether to allow multiple file selection
+                - file_types (list): List of file type filters
+                - directory (str): Initial directory
+        
+        Returns:
+            list or str: List of selected file paths or a single path if multiple selection is disabled
+        """
+        try:
+            if not webview:
+                return []
+                
+            # Set defaults
+            if options is None:
+                options = {}
+                
+            allow_multiple = options.get('allow_multiple', True)
+            file_types = options.get('file_types', ['All files (*.*)'])
+            directory = options.get('directory', '')
+            
+            # Open the file dialog
+            selected_files = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG, 
+                allow_multiple=allow_multiple,
+                file_types=file_types,
+                directory=directory
+            )
+            
+            # If no files selected or dialog canceled, return empty list
+            if not selected_files:
+                return []
+                
+            return selected_files
+            
+        except Exception as e:
+            import traceback
+            print(f"[Error] getFileDialog failed: {e}")
+            print(traceback.format_exc())
+            return []
+
+    def saveClipboardImage(self, options):
+        """
+        Save an image from clipboard data to a file.
+        
+        Args:
+            options (dict): Options including:
+                - imageData (str): Base64 data URL of the image
+                
+        Returns:
+            dict: Response with success status and file path (relative to web root)
+        """
+        try:
+            if not options or 'imageData' not in options:
+                return {'success': False, 'error': 'No image data provided'}
+                
+            # Extract the base64 data from the data URL
+            image_data = options['imageData']
+            if not image_data.startswith('data:image/'):
+                return {'success': False, 'error': 'Invalid image data format'}
+                
+            # Extract the image format (png, jpeg, etc.)
+            format_match = re.match(r'data:image/([a-zA-Z]+);base64,', image_data)
+            if not format_match:
+                return {'success': False, 'error': 'Could not determine image format'}
+                
+            img_format = format_match.group(1).lower()
+            if img_format == 'jpeg':
+                img_format = 'jpg'  # Standardize extension
+                
+            # Remove the data URL prefix to get the pure base64
+            base64_data = image_data.split(',', 1)[1]
+            
+            # Create a unique filename
+            unique_id = str(uuid.uuid4())
+            filename = f"clipboard_{unique_id}.{img_format}"
+            
+            # Actual disk path for saving
+            actual_filepath_on_disk = os.path.join(self.image_actual_save_path_base, filename)
+            
+            # Ensure the directory exists
+            os.makedirs(self.image_actual_save_path_base, exist_ok=True)
+            
+            # Decode and save the image
+            with open(actual_filepath_on_disk, 'wb') as f:
+                f.write(base64.b64decode(base64_data))
+                
+            # Path to be used in URLs and stored by frontend (relative to web root)
+            path_for_url = os.path.join(self.image_upload_folder_name, filename)
+                
+            return {
+                'success': True, 
+                'filePath': path_for_url, # Return the web-relative path
+                'message': 'Image saved successfully'
+            }
+            
+        except Exception as e:
+            import traceback
+            print(f"[Error] saveClipboardImage failed: {e}")
+            print(traceback.format_exc())
+            return {'success': False, 'error': str(e)}
 
     def _get_context_key(self, project):
         return project if project else '__main__'
@@ -37,11 +158,16 @@ class Api:
         try:
             # Get last message timestamp for cache invalidation
             if project:
-                messages = db.get_project_messages(project_name=project)
+                messages_data = db.get_project_messages(project_name=project)
             else:
-                messages = db.get_project_messages()
-            if messages:
-                last_msg_time = max(m.get('timestamp', '') for m in messages)
+                messages_data = db.get_project_messages()
+            
+            # For each message, fetch its images
+            for msg_data in messages_data:
+                msg_data['images'] = db.get_message_images(msg_data['id'])
+
+            if messages_data:
+                last_msg_time = max(m.get('timestamp', '') for m in messages_data)
             else:
                 last_msg_time = ''
             # Check cache
@@ -50,10 +176,10 @@ class Api:
                 return cache['messages']
             # Update cache
             self._message_cache[context_key] = {
-                'messages': messages,
+                'messages': messages_data, # Store messages with images
                 'cache_key': last_msg_time
             }
-            return messages
+            return messages_data
         finally:
             db.close()
 
@@ -92,23 +218,32 @@ class Api:
         db = db_messages.MessageDatabaseHandler()
         try:
             if project:
-                messages = db.get_project_messages(project_name=project)
+                messages_data = db.get_project_messages(project_name=project)
             else:
-                messages = db.get_project_messages()
+                messages_data = db.get_project_messages()
+            
+            # For each message, fetch its images
+            for msg_data in messages_data:
+                msg_data['images'] = db.get_message_images(msg_data['id'])
+
         except Exception as e:
             import traceback
             print("[Error] get_all_messages failed:", e)
             print(traceback.format_exc())
-            messages = []
+            messages_data = []
         finally:
             db.close()
-        return messages
+        return messages_data # Return messages with images
 
     def get_all_reminders(self):
         db = db_messages.MessageDatabaseHandler()
         try:
-            messages = db.get_project_messages()
-            reminders = [m for m in messages if m.get('remind')]
+            messages_data = db.get_project_messages()
+            # For each message, fetch its images - though reminders might not typically show images, 
+            # good to be consistent if the data structure is reused.
+            for msg_data in messages_data:
+                msg_data['images'] = db.get_message_images(msg_data['id'])
+            reminders = [m for m in messages_data if m.get('remind')]
         except Exception as e:
             import traceback
             print("[Error] get_all_reminders failed:", e)
@@ -122,35 +257,110 @@ class Api:
         """API endpoint to get all non-done messages with reminders."""
         db = db_messages.MessageDatabaseHandler()
         try:
-            messages = db.get_reminder_messages() # Use the new DB handler method
+            messages_data = db.get_reminder_messages() # Use the new DB handler method
+            # For each message, fetch its images
+            for msg_data in messages_data:
+                msg_data['images'] = db.get_message_images(msg_data['id'])
         except Exception as e:
             import traceback
             print("[Error] get_reminder_messages failed:", e)
             print(traceback.format_exc())
-            messages = []
+            messages_data = []
         finally:
             db.close()
-        return messages
+        return messages_data # Return messages with images
 
-    def add_message(self, content, project=None, files=None, extra=None, remind=None, importance=None, reoccurences=None, done=False):
-        from datetime import datetime
+    def add_message(self, content, project=None, files=None, extra=None, remind=None, importance=None, reoccurences=None, done=False, image_files=None):
+        # image_files is expected to be a list of file paths if using pywebview file dialog
+        # or could be adapted for actual file uploads if this were a standard web server
         db = db_messages.MessageDatabaseHandler()
-        msg = {
+        msg_payload = {
             'content': content,
             'timestamp': datetime.now().isoformat(),
             'project': project,
-            'files': files,
+            'files': files, # Existing files field, kept for now
             'extra': extra,
             'processed': 0,
             'remind': remind,
             'importance': importance,
             'reoccurences': reoccurences,
-            'done': done
+            'done': 0 if not done else 1
         }
-        db.add_message(msg)
-        db.close()
-        self._invalidate_message_cache(project)
-        return {'success': True}
+        try:
+            message_id = db.add_message(msg_payload)
+            
+            processed_image_paths_for_db = [] # Paths successfully processed and stored in DB
+
+            if image_files and isinstance(image_files, list):
+                for provided_path in image_files:
+                    if not provided_path: # Skip empty paths
+                        continue
+
+                    path_to_store_in_db = None
+                    is_absolute = os.path.isabs(provided_path)
+
+                    if is_absolute:
+                        # Case 1: Absolute path (from file dialog or drag-drop of local file)
+                        if os.path.exists(provided_path):
+                            try:
+                                filename = secure_filename(os.path.basename(provided_path))
+                                unique_filename = f"{message_id}_{filename}" # Ensure unique name related to message
+                                
+                                # Actual disk path for saving the file inside web/uploads/message_images
+                                destination_path_on_disk = os.path.join(self.image_actual_save_path_base, unique_filename)
+                                
+                                import shutil
+                                shutil.copy(provided_path, destination_path_on_disk)
+                                
+                                # Path to be stored in DB (relative to web root)
+                                path_to_store_in_db = os.path.join(self.image_upload_folder_name, unique_filename)
+                            except Exception as e:
+                                print(f"[Error] Failed to copy/process absolute file path {provided_path}: {e}")
+                        else:
+                            print(f"[Warning] Provided absolute file path does not exist: {provided_path}")
+                    else:
+                        # Case 2: Relative path (likely from clipboard paste, already in web/uploads/message_images structure)
+                        # The provided_path should be like "uploads/message_images/clipboard_xyz.png"
+                        # We need to verify it exists at "web/" + provided_path
+                        expected_disk_path = os.path.join("web", provided_path)
+                        if os.path.exists(expected_disk_path):
+                            path_to_store_in_db = provided_path # Already correct web-relative path
+                        else:
+                            print(f"[Warning] Provided relative path does not exist in web structure: {provided_path} (Checked: {expected_disk_path})")
+                    
+                    if path_to_store_in_db:
+                        try:
+                            db.add_message_image(message_id, path_to_store_in_db, datetime.now().isoformat())
+                            processed_image_paths_for_db.append(path_to_store_in_db)
+                        except Exception as e:
+                            print(f"[Error] Failed to add image to DB ({path_to_store_in_db}): {e}")
+            
+            self._invalidate_message_cache(project)
+            
+            # Fetch the newly added message with its images to return
+            # To do this efficiently, we'd ideally have a get_message_by_id in db_handler
+            # For now, refetching project messages and finding it:
+            messages_in_project = db.get_project_messages(project_name=project) 
+            returned_message = None
+            for m in reversed(messages_in_project): # Check recent messages first
+                if m['id'] == message_id:
+                    m['images'] = db.get_message_images(message_id) # Ensure images are attached for the response
+                    returned_message = m
+                    break
+            
+            return {
+                'success': True, 
+                'message_id': message_id, 
+                'message': returned_message, 
+                'saved_images': processed_image_paths_for_db # Return paths that were actually saved to DB
+            }
+        except Exception as e:
+            import traceback
+            print("[Error] add_message failed:", e)
+            print(traceback.format_exc())
+            return {'success': False, 'error': str(e)}
+        finally:
+            db.close()
 
     def edit_message(self, message_id, content=None, project=None, remind=None, importance=None, processed=None, done=None, reoccurences=None):
         """Edit message details, including recurrence."""
@@ -158,8 +368,8 @@ class Api:
         try:
             print(f"Editing message {message_id}: remind={remind}, reoccurences={reoccurences}")
             db.update_message(message_id, content=content, project=project, remind=remind, importance=importance, processed=processed, done=done, reoccurences=reoccurences)
-            # Invalidate relevant caches - invalidate all for now for simplicity
             self._message_cache = {}
+            reminder_scheduler.refresh_reminders()  # Refresh reminders after editing
             return {'success': True}
         except Exception as e:
             import traceback
@@ -360,16 +570,16 @@ class Api:
             print(traceback.format_exc())
             return {'result': None, 'history': [], 'error': str(e), 'traceback': traceback.format_exc()}
 
-    def add_project(self, name, description, color="#dddddd"):
+    def add_project(self, name, description, color="#dddddd", emoji="📁"):
         from datetime import datetime
         db = db_projects.ProjectsDatabaseHandler()
-        db.add_project(name, datetime.now().isoformat(), description, extra="", user_created=1, color=color)
+        db.add_project(name, datetime.now().isoformat(), description, extra="", user_created=1, color=color, emoji=emoji)
         db.close()
         return {'success': True}
 
-    def edit_project(self, project_id, name=None, description=None, color=None):
+    def edit_project(self, project_id, name=None, description=None, color=None, emoji=None):
         db = db_projects.ProjectsDatabaseHandler()
-        db.update_project(project_id, new_name=name, new_description=description, color=color)
+        db.update_project(project_id, new_name=name, new_description=description, color=color, emoji=emoji)
         db.close()
         return {'success': True}
 
@@ -398,6 +608,7 @@ class Api:
         try:
             print(f"Processing all messages with check_projects={self._check_projects}")
             model_handler.process_all_main_chat_messages(check_for_new_projects=self._check_projects)
+            reminder_scheduler.refresh_reminders()  # Refresh reminders after processing
             return {'success': True}
         except Exception as e:
             import traceback

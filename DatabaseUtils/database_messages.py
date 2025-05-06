@@ -31,6 +31,19 @@ class MessageDatabaseHandler:
         """)
         self.conn.commit()
 
+        # New table for message images
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS message_images (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id INTEGER NOT NULL,
+                file_path TEXT NOT NULL,
+                description TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (message_id) REFERENCES messages (id) ON DELETE CASCADE
+            )
+        """)
+        self.conn.commit()
+
     def add_message(self, message):
         self.cursor.execute("INSERT INTO messages (content, timestamp, project, files, extra, processed, remind, importance, reoccurences, done) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                             (message['content'], message['timestamp'], message['project'], message['files'], message['extra'], message['processed'], message['remind'], message['importance'], message.get('reoccurences', None), message.get('done', 0)))
@@ -40,6 +53,25 @@ class MessageDatabaseHandler:
         self.cursor.execute("SELECT last_insert_rowid()")
         last_id = self.cursor.fetchone()[0]
         return last_id
+
+    def add_message_image(self, message_id, file_path, created_at):
+        self.cursor.execute("INSERT INTO message_images (message_id, file_path, created_at) VALUES (?, ?, ?)",
+                            (message_id, file_path, created_at))
+        self.conn.commit()
+        return self.cursor.lastrowid
+
+    def get_message_images(self, message_id):
+        self.cursor.execute("SELECT id, file_path, description, created_at FROM message_images WHERE message_id = ?", (message_id,))
+        rows = self.cursor.fetchall()
+        images = []
+        for row in rows:
+            images.append({
+                "id": row[0],
+                "file_path": row[1],
+                "description": row[2],
+                "created_at": row[3]
+            })
+        return images
 
     def update_message(self, task_id, content=None, timestamp=None, project=None, files=None, extra=None, processed=None, remind=None, importance=None, reoccurences=None, done=None):
         """

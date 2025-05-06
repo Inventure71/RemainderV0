@@ -2,16 +2,25 @@ import { Message } from './message.js';
 
 // Main Chat page, mirroring Tkinter MainChatWindow
 export function renderMainChat(container, api) {
+    let selectedImageFiles = []; // Store selected file paths
+
     container.innerHTML = `
         <div style="display:flex;height:100%;min-height:0;">
             <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;background:#23272e;">
                 <style scoped>
                     .chat-container{display:flex;flex-direction:column;flex:1;min-height:0;}
                     .scrollable-list{flex:1;min-height:0;overflow-y:auto;margin:0;padding:0;list-style:none;background:#23272e;}
-                    .form-container{display:flex;gap:8px;align-items:center;margin-top:8px;}
+                    .form-container{display:flex;gap:8px;align-items:stretch;margin-top:8px;} /* Align items stretch */
+                    .input-area{display:flex;flex-direction:column;flex:1;gap:8px;}
                     .form-container textarea{flex:1;resize:none;font:inherit;padding:6px 8px;background:#23272e;color:#fff;border:1px solid #444;}
+                    .form-buttons{display:flex;flex-direction:column;gap:8px;} /* Column for send and attach */
+                    button{padding:8px 12px; cursor:pointer; border:none; border-radius:4px;}
+                    button#sendMessageBtn{background:#3578e5;color:black;}
+                    button#attachFileBtn{background:#44495a;color:white;}
                     button[disabled]{opacity:0.5;cursor:not-allowed;}
                     .loading{text-align:center;padding:1em;color:#888;}
+                    #selectedFilesPreview{font-size:0.8em;color:#aaa;margin-top:4px;max-height:50px;overflow-y:auto;}
+                    #selectedFilesPreview div{padding:2px 0;}
                 </style>
                 <div class="chat-container">
                     <h2 style="color:#f7f7fa;">Main Chat</h2>
@@ -19,11 +28,15 @@ export function renderMainChat(container, api) {
                     <ul id="messagesList" class="scrollable-list"></ul>
                     <div id="mainChatError" style="color:#ff5252;margin:8px 0 0 0;"></div>
                     <div class="form-container">
-                        <div style="display:flex;flex-direction:column;flex:1;gap:8px;">
+                        <div class="input-area">
                             <textarea id="messageContent" placeholder="Type a message… (Shift+Enter for new line)" rows="2" autofocus></textarea>
                             <textarea id="messageContext" placeholder="Additional context (optional, will be shown on hover)" rows="1"></textarea>
+                            <div id="selectedFilesPreview"></div>
                         </div>
-                        <button id="sendMessageBtn" disabled>Send</button>
+                        <div class="form-buttons">
+                            <button id="attachFileBtn">Attach</button>
+                            <button id="sendMessageBtn" disabled>Send</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -39,9 +52,27 @@ export function renderMainChat(container, api) {
 
     const textarea = container.querySelector('#messageContent');
     const sendBtn = container.querySelector('#sendMessageBtn');
+    const attachFileBtn = container.querySelector('#attachFileBtn');
+    const selectedFilesPreview = container.querySelector('#selectedFilesPreview');
+    const inputArea = container.querySelector('.input-area');
+
+    // Helper function to handle files from various sources (dialog, drag-drop, paste)
+    function handleFiles(files) {
+        if (!files || files.length === 0) return;
+        
+        const filePaths = Array.from(files).map(file => file.path).filter(Boolean);
+        if (filePaths.length > 0) {
+            selectedImageFiles = selectedImageFiles.concat(filePaths);
+            renderSelectedFilesPreview();
+            updateSendBtnState();
+        }
+    }
 
     function updateSendBtnState() {
-        sendBtn.disabled = textarea.value.trim().length === 0;
+        // Enable send if textarea has content OR if there are files selected
+        const hasContent = textarea.value.trim().length > 0;
+        const hasFiles = selectedImageFiles.length > 0;
+        sendBtn.disabled = !(hasContent || hasFiles);
     }
     updateSendBtnState();
 
@@ -50,39 +81,175 @@ export function renderMainChat(container, api) {
     textarea.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            sendBtn.click();
+            if (!sendBtn.disabled) sendBtn.click(); // Check if not disabled
         }
     });
 
-    sendBtn.addEventListener('click', () => sendMessage(api, textarea, sendBtn));
+    // Setup drag and drop for the input area
+    if (inputArea) {
+        // Highlight drop area when dragging over it
+        inputArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            inputArea.style.boxShadow = '0 0 10px rgba(0, 123, 255, 0.5)';
+            inputArea.style.borderColor = '#007bff';
+        });
+
+        inputArea.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            inputArea.style.boxShadow = '0 0 10px rgba(0, 123, 255, 0.5)';
+            inputArea.style.borderColor = '#007bff';
+        });
+
+        inputArea.addEventListener('dragleave', () => {
+            inputArea.style.boxShadow = '';
+            inputArea.style.borderColor = '';
+        });
+
+        // Handle the drop
+        inputArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            inputArea.style.boxShadow = '';
+            inputArea.style.borderColor = '';
+            
+            // Handle dropped files
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFiles(e.dataTransfer.files);
+            }
+        });
+    }
+
+    // Setup paste handling for the textarea
+    textarea.addEventListener('paste', (e) => {
+        // Check if the paste event has any images
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        
+        if (!items) return;
+        
+        let hasImageItem = false;
+        
+        for (const item of items) {
+            if (item.type.indexOf('image') === 0) {
+                hasImageItem = true;
+                const blob = item.getAsFile();
+                
+                // We need to save this temporary file to disk through the backend
+                if (blob) {
+                    // Create a temporary path for this image
+                    const reader = new FileReader();
+                    reader.onload = async function(event) {
+                        try {
+                            // Send the image data to the backend to save as a temp file
+                            const response = await api.saveClipboardImage({
+                                imageData: event.target.result
+                            });
+                            
+                            if (response && response.success && response.filePath) {
+                                selectedImageFiles.push(response.filePath);
+                                renderSelectedFilesPreview();
+                                updateSendBtnState();
+                            } else {
+                                console.error("Failed to save clipboard image", response);
+                                document.getElementById('mainChatError').textContent = 'Failed to process pasted image.';
+                            }
+                        } catch (err) {
+                            console.error("Error saving clipboard image:", err);
+                            document.getElementById('mainChatError').textContent = 'Error processing pasted image.';
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                }
+            }
+        }
+        
+        // If we found an image in the clipboard, prevent the default paste action
+        // to avoid pasting the image as text
+        if (hasImageItem) {
+            e.preventDefault();
+        }
+    });
+
+    // Modify existing attach button click handler to use our new handleFiles function
+    attachFileBtn.addEventListener('click', async () => {
+        try {
+            const filePaths = await api.getFileDialog({
+                allow_multiple: true,
+                file_types: ['Image files (*.png;*.jpg;*.jpeg;*.gif;*.webp)', 'All files (*.*)']
+            });
+
+            if (filePaths && filePaths.length > 0) {
+                selectedImageFiles = selectedImageFiles.concat(filePaths);
+                renderSelectedFilesPreview();
+                updateSendBtnState();
+            }
+        } catch (e) {
+            console.error("Error opening file dialog:", e);
+            document.getElementById('mainChatError').textContent = 'Failed to open file dialog.';
+        }
+    });
+
+    function renderSelectedFilesPreview() {
+        selectedFilesPreview.innerHTML = '';
+        if (selectedImageFiles.length > 0) {
+            selectedImageFiles.forEach(filePath => {
+                const fileDiv = document.createElement('div');
+                // Display only filename
+                fileDiv.textContent = filePath.split(/[\/]/).pop();
+                selectedFilesPreview.appendChild(fileDiv);
+            });
+        }
+    }
+
+    sendBtn.addEventListener('click', () => sendMessage(api, textarea, sendBtn, selectedImageFiles, () => {
+        selectedImageFiles = []; // Clear selected files array
+        renderSelectedFilesPreview(); // Clear preview
+        updateSendBtnState(); // Update button state after clearing files
+    }));
 
     loadMessages(api);
 }
 
-async function sendMessage(api, textarea, sendBtn) {
+async function sendMessage(api, textarea, sendBtn, imageFiles, clearFilesCallback) {
     const content = textarea.value.trim();
-    if (!content) return;
+    if (!content && (!imageFiles || imageFiles.length === 0)) { // Also check if there are images
+        // If no content and no images, don't send
+        return;
+    }
     sendBtn.disabled = true;
+    document.getElementById('attachFileBtn').disabled = true; // Disable attach while sending
 
-    // Get the context from the context textarea
     const contextTextarea = document.getElementById('messageContext');
     const context = contextTextarea ? contextTextarea.value.trim() : '';
 
     try {
-        const r = await api.add_message(content, null, null, context);
+        // Backend expects: content, project=None, files=None (old field), extra=None, remind=None, importance=None, reoccurences=None, done=False, image_files=None
+        const r = await api.add_message(
+            content,      // content
+            null,         // project
+            null,         // files (old field)
+            context,      // extra
+            null,         // remind
+            null,         // importance
+            null,         // reoccurences
+            false,        // done
+            imageFiles    // image_files (new field for actual image paths)
+        );
         if (r && r.success === false && r.error) {
             document.getElementById('mainChatError').textContent = r.error;
         } else {
             textarea.value = '';
             if (contextTextarea) contextTextarea.value = '';
             document.getElementById('mainChatError').textContent = '';
-            loadMessages(api);
+            if (clearFilesCallback) clearFilesCallback(); // Clears selectedImageFiles and calls updateSendBtnState
+            loadMessages(api); // Reload messages to show the new one (with images)
         }
     } catch (e) {
         document.getElementById('mainChatError').textContent = e.message || 'Failed to send message.';
     } finally {
         sendBtn.disabled = false;
+        document.getElementById('attachFileBtn').disabled = false; // Re-enable attach button
         textarea.focus();
+        // Update send button state finally
+        updateSendBtnState();
     }
 }
 

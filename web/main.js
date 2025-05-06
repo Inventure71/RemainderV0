@@ -4,16 +4,21 @@ import { renderProjects }    from './pages/projects.js';
 import { renderProjectChat } from './pages/project_chat.js';
 import { showNotification }  from './utils/ui_helpers.js';
 import { renderModelChatSidebar } from './components/model_chat_sidebar.js';
+import { createEmojiPicker } from './components/emoji_picker.js';
 
-const api = window.pywebview?.api;
-const app = document.getElementById('app');
-let selectedProject = null;
+// Constants and utilities
+// Add emoji picker helper function
 
-const nav = {
-  mainChat:    () => { selectedProject = null; window.selectedProject = null; renderMainChat(app, api); },
-  projects:    () => renderProjects(app, api, proj => { selectedProject = proj; window.selectedProject = proj; nav.projectChat(proj); }),
+// Initialize API and nav globals 
+let api = window.pywebview?.api;
+let nav = {
+  mainChat: () => { selectedProject = null; window.selectedProject = null; renderMainChat(app, api); },
+  projects: () => renderProjects(app, api, proj => { selectedProject = proj; window.selectedProject = proj; nav.projectChat(proj); }),
   projectChat: proj => { window.selectedProject = proj; renderProjectChat(app, api, proj); },
 };
+
+const app = document.getElementById('app');
+let selectedProject = null;
 
 // Expose navigation globally so subcomponents can call nav properly
 window.nav = nav;
@@ -54,12 +59,118 @@ window.actions = {
         // project changed; do nothing to preserve current view and scroll position
       });
   },
-  editProject: id => {
-    const name = prompt('New project name:', '');
-    if (!name) return;
-    const desc = prompt('New description:', '');
-    const color = prompt('New color (hex):', '#dddddd');
-    api.edit_project(id, name, desc, color).then(nav.projects);
+  editProject: (id, currentData = {}) => {
+    // First get the basic info using prompts
+    let name = prompt('New project name:', currentData.name || '');
+    if (name === null) return;
+    if (!name.trim()) {
+      alert('Project name cannot be empty.');
+      return;
+    }
+
+    const desc = prompt('New description:', currentData.description || '');
+    if (desc === null) return;
+
+    const color = prompt('New color (hex):', currentData.color || '#dddddd');
+    if (color === null) return;
+    if (!/^#[0-9A-F]{6}$/i.test(color) && !/^#[0-9A-F]{3}$/i.test(color)) {
+        alert('Invalid color format. Please use hex (e.g., #RRGGBB or #RGB).');
+        return;
+    }
+
+    // For emoji, create a temporary input and button for the picker
+    const tempContainer = document.createElement('div');
+    tempContainer.style.position = 'fixed';
+    tempContainer.style.top = '50%';
+    tempContainer.style.left = '50%';
+    tempContainer.style.transform = 'translate(-50%, -50%)';
+    tempContainer.style.zIndex = '10000';
+    
+    const emojiInput = document.createElement('input');
+    emojiInput.type = 'text';
+    emojiInput.value = currentData.emoji || '📁';
+    emojiInput.readOnly = true;
+    emojiInput.style.fontSize = '24px';
+    emojiInput.style.textAlign = 'center';
+    emojiInput.style.width = '50px';
+    emojiInput.style.padding = '10px';
+    emojiInput.style.marginRight = '10px';
+    
+    const emojiLabel = document.createElement('div');
+    emojiLabel.textContent = 'Select emoji:';
+    emojiLabel.style.marginBottom = '10px';
+    emojiLabel.style.fontWeight = 'bold';
+    emojiLabel.style.color = '#fff';
+    
+    const emojiButton = document.createElement('button');
+    emojiButton.textContent = 'Choose Emoji';
+    emojiButton.style.padding = '8px 15px';
+    
+    const panel = document.createElement('div');
+    panel.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    panel.style.padding = '20px';
+    panel.style.borderRadius = '8px';
+    panel.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
+    
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'center';
+    buttonContainer.style.marginTop = '20px';
+    
+    const saveButton = document.createElement('button');
+    saveButton.textContent = 'Save';
+    saveButton.style.padding = '8px 20px';
+    saveButton.style.backgroundColor = '#4CAF50';
+    saveButton.style.color = 'white';
+    saveButton.style.border = 'none';
+    saveButton.style.borderRadius = '4px';
+    saveButton.style.marginRight = '10px';
+    
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancel';
+    cancelButton.style.padding = '8px 20px';
+    cancelButton.style.backgroundColor = '#f44336';
+    cancelButton.style.color = 'white';
+    cancelButton.style.border = 'none';
+    cancelButton.style.borderRadius = '4px';
+    
+    buttonContainer.appendChild(saveButton);
+    buttonContainer.appendChild(cancelButton);
+    
+    panel.appendChild(emojiLabel);
+    panel.appendChild(emojiInput);
+    panel.appendChild(emojiButton);
+    panel.appendChild(buttonContainer);
+    
+    tempContainer.appendChild(panel);
+    document.body.appendChild(tempContainer);
+    
+    // Create the emoji picker
+    const picker = createEmojiPicker(emojiInput, emojiButton);
+    
+    // Set up event handlers
+    saveButton.addEventListener('click', () => {
+      const emoji = emojiInput.value;
+      document.body.removeChild(tempContainer);
+      
+      // Save the project with the selected emoji
+      api.edit_project(id, name.trim(), desc, color, emoji)
+        .then(() => {
+          if (window.nav && window.nav.projects) window.nav.projects();
+          else location.reload();
+        })
+        .catch(e => {
+          console.error('Failed to edit project:', e);
+          alert(`Failed to edit project: ${e.message || e}`);
+        });
+    });
+    
+    cancelButton.addEventListener('click', () => {
+      document.body.removeChild(tempContainer);
+    });
+    
+    // Open the picker automatically
+    setTimeout(() => emojiButton.click(), 100);
   },
   deleteProject: id => {
     if (confirm('Delete this project?'))
@@ -256,21 +367,110 @@ function closeModal() {
   // Reset input display states if needed, though showCustomPrompt handles it
 }
 
-// Attach listeners (only once)
+// Add event listeners for OK and Cancel buttons
 modalOkBtn.addEventListener('click', handleModalOk);
 modalCancelBtn.addEventListener('click', handleModalCancel);
-modalOverlay.addEventListener('click', handleModalCancel); // Close on overlay click
-modalInput.addEventListener('keydown', (e) => {
+
+// Allow Enter key to submit the modal, and Escape to cancel
+document.addEventListener('keydown', (e) => {
+  if (document.body.classList.contains('modal-open')) {
     if (e.key === 'Enter') {
+      // Prevent Enter from submitting form if modalInput is textarea (not currently used)
+      if (!(modalInput.tagName === 'TEXTAREA' && e.target === modalInput)) {
+        e.preventDefault();
         handleModalOk();
+      }
     } else if (e.key === 'Escape') {
-        handleModalCancel();
+      handleModalCancel();
     }
+  }
 });
 
 // Expose the function globally (or pass it down)
 window.showCustomPrompt = showCustomPrompt;
 // --- End Custom Modal Logic ---
+
+// --- Image Viewer Modal Logic ---
+const imageViewerModal = document.getElementById('imageViewerModal');
+const modalImageContent = document.getElementById('modalImageContent');
+const modalImageLink = document.getElementById('modalImageLink');
+const closeImageModalBtn = document.getElementById('closeImageModal');
+
+window.openImageModal = function(imageSrc) {
+  if (imageViewerModal && modalImageContent && modalImageLink) {
+    // Show loading state
+    imageViewerModal.style.display = 'flex';
+    document.body.classList.add('image-modal-open');
+    
+    // Clear previous image if any
+    modalImageContent.src = '';
+    modalImageContent.style.display = 'none';
+    
+    // Show loading indicator
+    let loader = imageViewerModal.querySelector('.modal-loader');
+    if (!loader) {
+      loader = document.createElement('div');
+      loader.className = 'modal-loader';
+      loader.innerHTML = 'Loading...';
+      loader.style.color = 'white';
+      loader.style.padding = '20px';
+      loader.style.textAlign = 'center';
+      imageViewerModal.insertBefore(loader, modalImageContent);
+    } else {
+      loader.style.display = 'block';
+    }
+    
+    // Set up image load and error handlers
+    modalImageContent.onload = function() {
+      if (loader) loader.style.display = 'none';
+      modalImageContent.style.display = 'block';
+    };
+    
+    modalImageContent.onerror = function() {
+      if (loader) {
+        loader.innerHTML = 'Failed to load image.<br>The image may not exist or cannot be accessed.';
+        loader.style.color = '#ff6b6b';
+      }
+      console.error('Failed to load image:', imageSrc);
+    };
+    
+    // Set image source and link
+    modalImageContent.src = imageSrc;
+    modalImageLink.href = imageSrc;
+    modalImageLink.textContent = 'Open image in new tab';
+  }
+};
+
+function closeImageViewerModal() {
+  if (imageViewerModal) {
+    imageViewerModal.style.display = 'none';
+    modalImageContent.src = ''; // Clear src to stop loading/free memory
+    modalImageLink.href = '#';
+    document.body.classList.remove('image-modal-open');
+  }
+}
+
+if (closeImageModalBtn) {
+  closeImageModalBtn.addEventListener('click', closeImageViewerModal);
+}
+
+if (imageViewerModal) {
+  imageViewerModal.addEventListener('click', (event) => {
+    // Close if clicked on the backdrop itself, not on the image or link
+    if (event.target === imageViewerModal) {
+      closeImageViewerModal();
+    }
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+    if (document.body.classList.contains('image-modal-open')) {
+        if (e.key === 'Escape') {
+            closeImageViewerModal();
+        }
+    }
+});
+// --- End Image Viewer Modal Logic ---
 
 // Navbar: process all messages and check projects toggle
 const processAllBtnNavbar = document.getElementById('processAllBtnNavbar');

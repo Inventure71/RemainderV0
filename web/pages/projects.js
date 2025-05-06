@@ -1,4 +1,17 @@
 // Projects page, mirroring Tkinter ProjectsWindow with grid of colored boxes
+import { createEmojiPicker } from '../components/emoji_picker.js';
+
+// Helper function to determine text color based on background
+function getContrastYIQ(hexcolor){
+    if (!hexcolor) return '#fff'; // Default to white if no color
+    hexcolor = hexcolor.replace("#", "");
+    var r = parseInt(hexcolor.substr(0,2),16);
+    var g = parseInt(hexcolor.substr(2,2),16);
+    var b = parseInt(hexcolor.substr(4,2),16);
+    var yiq = ((r*299)+(g*587)+(b*114))/1000;
+    return (yiq >= 128) ? '#000' : '#fff';
+}
+
 export function renderProjects(container, api, onProjectSelect) {
     container.innerHTML = `
         <style scoped>
@@ -17,6 +30,10 @@ export function renderProjects(container, api, onProjectSelect) {
             .project-actions button{background:none;border:none;font-size:16px;cursor:pointer;padding:2px;}
             .form-container{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:flex-end;}
             .form-container input[type="text"]{flex:1 1 140px;padding:6px 8px;font:inherit;}
+            .emoji-input-wrapper{position:relative;width:40px;}
+            .emoji-input{width:100%;text-align:center;padding:6px 8px;font:inherit;cursor:pointer;}
+            .emoji-picker-button{position:absolute;right:0;top:0;height:100%;width:20px;background:none;border:none;cursor:pointer;font-size:12px;opacity:0.5;display:flex;align-items:center;justify-content:center;}
+            .emoji-picker-button:hover{opacity:1;}
             .form-container input[type="color"]{width:48px;height:34px;padding:0;border:none;background:none;}
             .loading{text-align:center;padding:1em;color:#888;}
             button[disabled]{opacity:0.5;cursor:not-allowed;}
@@ -32,6 +49,10 @@ export function renderProjects(container, api, onProjectSelect) {
             <form id="addProjectForm" class="form-container">
                 <input id="projectName" type="text" placeholder="Project name" aria-label="Project name" required />
                 <input id="projectDescription" type="text" placeholder="Description" aria-label="Description" />
+                <div class="emoji-input-wrapper">
+                    <input id="projectEmoji" type="text" class="emoji-input" placeholder="📁" aria-label="Emoji" maxlength="2" value="📁" readonly />
+                    <button type="button" id="emojiPickerButton" class="emoji-picker-button" aria-label="Select emoji">▼</button>
+                </div>
                 <input id="projectColor" type="color" value="#dddddd" aria-label="Color" />
                 <button id="addProjectBtn" disabled>Add Project</button>
             </form>
@@ -41,8 +62,13 @@ export function renderProjects(container, api, onProjectSelect) {
     const nameInput = container.querySelector('#projectName');
     const descInput = container.querySelector('#projectDescription');
     const colorInput = container.querySelector('#projectColor');
-    const addBtn    = container.querySelector('#addProjectBtn');
-    const form      = container.querySelector('#addProjectForm');
+    const emojiInput = container.querySelector('#projectEmoji');
+    const emojiButton = container.querySelector('#emojiPickerButton');
+    const addBtn = container.querySelector('#addProjectBtn');
+    const form = container.querySelector('#addProjectForm');
+
+    // Initialize emoji picker
+    createEmojiPicker(emojiInput, emojiButton);
 
     function updateBtnState() {
         addBtn.disabled = nameInput.value.trim().length === 0;
@@ -52,14 +78,15 @@ export function renderProjects(container, api, onProjectSelect) {
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        addProject(api, nameInput, descInput, colorInput, addBtn, onProjectSelect);
+        addProject(api, nameInput, descInput, colorInput, emojiInput, addBtn, onProjectSelect);
     });
 
     loadProjects(api, onProjectSelect);
 }
 
-async function addProject(api, nameInput, descInput, colorInput, addBtn, onProjectSelect) {
+async function addProject(api, nameInput, descInput, colorInput, emojiInput, addBtn, onProjectSelect) {
     const name = nameInput.value.trim();
+    const emoji = emojiInput.value.trim() || '📁';
     if (!name) return;
     addBtn.disabled = true;
 
@@ -67,12 +94,13 @@ async function addProject(api, nameInput, descInput, colorInput, addBtn, onProje
     const currentApi = api || window.pywebview?.api;
 
     try {
-        const r = await currentApi.add_project(name, descInput.value.trim(), colorInput.value);
+        const r = await currentApi.add_project(name, descInput.value.trim(), colorInput.value, emoji);
         if (r && r.success === false && r.error) {
             document.getElementById('projectsError').textContent = r.error;
         } else {
             nameInput.value = '';
             descInput.value = '';
+            emojiInput.value = '';
             document.getElementById('projectsError').textContent = '';
             loadProjects(currentApi, onProjectSelect);
         }
@@ -123,7 +151,10 @@ function loadProjects(api, onProjectSelect) {
              if (reminders.length > 0) { // Only show if there are reminders
                 const box = document.createElement('div');
                 box.className = 'project-box reminders-box'; // Add specific class for styling
-                box.style.background = '#f0e68c'; // Khaki color for distinction
+                const bgColor = '#f0e68c'; // Khaki color for distinction
+                const textColor = getContrastYIQ(bgColor);
+                box.style.background = bgColor;
+                box.style.color = textColor;
                 box.setAttribute('role', 'button');
                 box.setAttribute('tabindex', '0');
                 box.innerHTML = `
@@ -149,12 +180,15 @@ function loadProjects(api, onProjectSelect) {
                 projects.forEach(proj => {
                     const box = document.createElement('div');
                     box.className = 'project-box';
-                    box.style.background = proj.color || '#dddddd';
+                    const bgColor = proj.color || '#dddddd';
+                    const textColor = getContrastYIQ(bgColor);
+                    box.style.background = bgColor;
+                    box.style.color = textColor;
                     box.setAttribute('role', 'button');
                     box.setAttribute('tabindex', '0');
                     box.innerHTML = `
-                        <div class="project-icon"></div>
-                        <div class="project-name">${proj.name}</div>
+                        <div class="project-icon">${proj.emoji || '📁'}</div>
+                        <div class="project-name" style="color: ${textColor};">${proj.name}</div>
                         <div class="project-actions">
                             <button class="edit-btn" aria-label="Edit project">✏️</button>
                             <button class="delete-btn" aria-label="Delete project">🗑️</button>
@@ -163,7 +197,12 @@ function loadProjects(api, onProjectSelect) {
                     box.addEventListener('click', () => onProjectSelect(proj));
                     box.querySelector('.edit-btn').addEventListener('click', e => {
                         e.stopPropagation();
-                        window.actions?.editProject(proj.id);
+                        window.actions?.editProject(proj.id, { 
+                            name: proj.name, 
+                            description: proj.description, 
+                            color: proj.color, 
+                            emoji: proj.emoji 
+                        });
                     });
                     box.querySelector('.delete-btn').addEventListener('click', e => {
                         e.stopPropagation();

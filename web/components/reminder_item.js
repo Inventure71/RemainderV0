@@ -5,86 +5,191 @@
  * @param {function} onUpdate - Callback function to refresh the list after an update.
  * @returns {HTMLElement} - The list item element.
  */
+
+const importanceMap = {
+    low: [1, 2, 3],
+    medium: [4, 5, 6, 7],
+    high: [8, 9, 10]
+};
+
+const dayMap = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' };
+
+function getImportanceLevel(score) {
+    const numericScore = parseInt(score);
+    if (isNaN(numericScore)) return 'medium'; // Default
+    for (const level in importanceMap) {
+        if (importanceMap[level].includes(numericScore)) {
+            return level;
+        }
+    }
+    return 'medium'; // Default if out of range
+}
+
+function formatRecurrence(recurrenceJson) {
+    if (!recurrenceJson) return null;
+    try {
+        const rules = JSON.parse(recurrenceJson);
+        if (rules.type === 'daily') {
+            return "Repeats Daily";
+        } else if (rules.type === 'weekly' && rules.days?.length > 0) {
+            const dayNames = rules.days.map(d => dayMap[d] || '?').join(', ');
+            return `Repeats Weekly (${dayNames})`;
+        }
+    } catch {}
+    return null;
+}
+
 export function renderReminderItem(reminderData, api, onUpdate) {
     const li = document.createElement('li');
-    li.style.border = '1px solid #444';
-    li.style.borderRadius = '6px';
-    li.style.marginBottom = '10px';
-    li.style.padding = '10px 12px';
-    li.style.background = reminderData.done ? '#3a3f4b' : '#2c313a'; // Dim if done
-    li.style.opacity = reminderData.done ? 0.7 : 1;
-    li.style.display = 'flex';
-    li.style.flexDirection = 'column';
-    li.style.gap = '8px';
-    li.style.position = 'relative'; // Needed for positioning edit form later if desired
+    li.className = 'reminder-card';
+    const importanceLevel = getImportanceLevel(reminderData.importance);
+    li.dataset.importance = importanceLevel; // Add data attribute for styling
+    if (reminderData.done) {
+        li.classList.add('done');
+    }
 
-    const mainContentDiv = document.createElement('div'); // Wrap non-edit content
-    mainContentDiv.style.display = 'flex';
-    mainContentDiv.style.flexDirection = 'column';
-    mainContentDiv.style.gap = '8px';
+    li.innerHTML = `
+        <style scoped>
+            .reminder-card {
+                background: #2c313a;
+                border: 1px solid #444;
+                border-left-width: 5px; /* Importance indicator */
+                border-radius: 6px;
+                margin-bottom: 12px;
+                padding: 12px 15px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                position: relative;
+                transition: background 0.2s, border-color 0.2s, transform 0.1s;
+                overflow: hidden; /* Contain edit form */
+            }
+            .reminder-card:hover {
+                background: #333a45;
+                border-color: #555;
+                transform: translateY(-1px);
+            }
+            .reminder-card.done {
+                background: #3a3f4b;
+                opacity: 0.65;
+                border-left-color: #666 !important;
+            }
+            .reminder-card.done .reminder-content,
+            .reminder-card.done .reminder-details {
+                text-decoration: line-through;
+                color: #999;
+            }
+            /* Importance Colors */
+            .reminder-card[data-importance="low"] { border-left-color: #3b82f6; } /* Blue */
+            .reminder-card[data-importance="medium"] { border-left-color: #fbbf24; } /* Amber */
+            .reminder-card[data-importance="high"] { border-left-color: #ef4444; } /* Red */
 
-    const contentDiv = document.createElement('div');
-    contentDiv.textContent = reminderData.content;
-    contentDiv.style.color = '#eee';
-    contentDiv.style.flex = '1';
+            .reminder-main-content { display: flex; flex-direction: column; gap: 8px; transition: opacity 0.3s; }
+            .reminder-card.editing .reminder-main-content { opacity: 0; pointer-events: none; max-height: 0; } /* Hide when editing */
 
-    const detailsDiv = document.createElement('div');
-    detailsDiv.style.fontSize = '0.9em';
-    detailsDiv.style.color = '#bbb';
-    const timeSpan = document.createElement('span');
-    let currentRemindTime = null; // Store parsed date object
-    let currentRecurrence = null;
+            .reminder-content { color: #eee; flex: 1; line-height: 1.4; }
+            .reminder-details { font-size: 0.9em; color: #bbb; display: flex; flex-wrap: wrap; gap: 5px 15px; align-items: center; }
+            .reminder-details span { display: inline-flex; align-items: center; gap: 4px; }
+            .reminder-controls { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+            .reminder-controls label { display: flex; align-items: center; cursor: pointer; color: #ccc; font-size: 0.9em; }
+            .reminder-controls input[type="checkbox"] { margin-right: 5px; cursor: pointer; }
+            .reminder-controls button {
+                background: #444b58; border: none; color: #ccc; padding: 4px 10px;
+                border-radius: 4px; cursor: pointer; font-size: 0.85em;
+                transition: background 0.2s, color 0.2s;
+            }
+            .reminder-controls button:hover { background: #525a69; color: #fff; }
+
+            /* Edit Form Styles */
+            .reminder-edit-form {
+                display: flex; /* Changed from none initially */
+                flex-direction: column;
+                gap: 10px;
+                padding-top: 10px;
+                margin-top: 8px;
+                border-top: 1px solid #555;
+                transition: max-height 0.4s ease-out, opacity 0.4s ease-out;
+                max-height: 0; /* Initially hidden */
+                opacity: 0;    /* Initially hidden */
+                overflow: hidden;
+            }
+             .reminder-card.editing .reminder-edit-form {
+                 max-height: 300px; /* Adjust as needed */
+                 opacity: 1;
+             }
+            .edit-form-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+            .edit-form-row label { color:#ccc; font-size: 0.9em; margin-bottom: 2px; min-width: 40px; }
+            .edit-form-row input[type="date"], .edit-form-row input[type="time"], .edit-form-row select {
+                background: #3a3f4b; color: #eee; border: 1px solid #555; padding: 5px 8px; border-radius: 4px; font-size: 0.9em;
+            }
+            .edit-form-row input[type="date"] { flex-grow: 1; }
+            .edit-form-row select { min-width: 100px; }
+            .weekly-days { display: none; gap: 8px; flex-wrap: wrap; margin-left: 50px; margin-top: 5px; }
+            .weekly-days label { color:#bbb; font-size: 0.9em; display: inline-flex; align-items: center; gap: 3px; }
+            .weekly-days input { margin-right: 3px; }
+            .edit-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+             .edit-actions button { font-size: 0.9em; padding: 5px 12px; }
+             .edit-actions .save-reminder-btn { background: #2563eb; color: white; }
+             .edit-actions .save-reminder-btn:hover { background: #1d4ed8; }
+             .edit-actions .cancel-reminder-btn { background: #666; }
+             .edit-actions .cancel-reminder-btn:hover { background: #777; }
+        </style>
+
+        <div class="reminder-main-content">
+            <div class="reminder-content">${reminderData.content}</div>
+            <div class="reminder-details">
+                <!-- Time and Recurrence will be added here -->
+            </div>
+            <div class="reminder-controls">
+                <!-- Controls (Done, Edit, Clear) will be added here -->
+            </div>
+        </div>
+        <div class="reminder-edit-form">
+             <!-- Edit Form HTML will be added here -->
+        </div>
+    `;
+
+    // --- Populate Details --- 
+    const detailsDiv = li.querySelector('.reminder-details');
+    let currentRemindTime = null;
+    let remindTimeValid = false;
     try {
         const parts = reminderData.remind?.match(/(\d{4})-(\d{2})-(\d{2})-(\d{2}):(\d{2})/);
         if (parts) {
             currentRemindTime = new Date(parts[1], parts[2] - 1, parts[3], parts[4], parts[5]);
-            timeSpan.textContent = `⏰ ${currentRemindTime.toLocaleString()}`;
-        } else {
-            const remindDate = new Date(reminderData.remind); // Fallback
-            if (!isNaN(remindDate)) {
-                currentRemindTime = remindDate;
-                timeSpan.textContent = `⏰ ${currentRemindTime.toLocaleString()} (Parsed as fallback)`;
-                timeSpan.style.fontStyle = 'italic';
-            } else {
-                timeSpan.textContent = reminderData.remind ? `⏰ Invalid Date: ${reminderData.remind}` : '⏰ No reminder set';
-            }
+            if (!isNaN(currentRemindTime)) remindTimeValid = true;
         }
-        if (reminderData.reoccurences) {
-            try {
-                currentRecurrence = JSON.parse(reminderData.reoccurences);
-                if (currentRecurrence?.type === 'daily') {
-                    timeSpan.textContent += ' (Daily)';
-                } else if (currentRecurrence?.type === 'weekly') {
-                    timeSpan.textContent += ` (Weekly: ${currentRecurrence.days?.join(',') || 'N/A'})`;
-                }
-            } catch { /* ignore parsing error */ }
-        }
+    } catch {}
 
-    } catch (e) {
-        timeSpan.textContent = `⏰ Error parsing date: ${reminderData.remind}`;
-        timeSpan.style.color = '#ff8888';
+    if (remindTimeValid) {
+        const timeSpan = document.createElement('span');
+        timeSpan.innerHTML = `⏰ ${currentRemindTime.toLocaleString()}`;
+        detailsDiv.appendChild(timeSpan);
+    } else if (reminderData.remind) {
+        const timeSpan = document.createElement('span');
+        timeSpan.innerHTML = `⏰ <span style="color:#ff8888;">Invalid: ${reminderData.remind}</span>`;
+        detailsDiv.appendChild(timeSpan);
     }
-    detailsDiv.appendChild(timeSpan);
 
-    const controlsDiv = document.createElement('div');
-    controlsDiv.style.display = 'flex';
-    controlsDiv.style.alignItems = 'center';
-    controlsDiv.style.gap = '10px';
+    const recurrenceText = formatRecurrence(reminderData.reoccurences);
+    if (recurrenceText) {
+        const recurrenceSpan = document.createElement('span');
+        recurrenceSpan.innerHTML = `🔁 ${recurrenceText}`;
+        recurrenceSpan.style.color = '#aae'; // Subtle color
+        detailsDiv.appendChild(recurrenceSpan);
+    }
 
-    // --- Done Checkbox ---
+    // --- Populate Controls --- 
+    const controlsDiv = li.querySelector('.reminder-controls');
+
+    // Done Checkbox
     const doneLabel = document.createElement('label');
-    doneLabel.style.display = 'flex';
-    doneLabel.style.alignItems = 'center';
-    doneLabel.style.cursor = 'pointer';
-    doneLabel.style.color = '#ccc';
-
     const doneCheckbox = document.createElement('input');
     doneCheckbox.type = 'checkbox';
     doneCheckbox.checked = reminderData.done;
-    doneCheckbox.style.marginRight = '5px';
+    doneCheckbox.title = reminderData.done ? 'Mark as not done' : 'Mark as done';
     doneCheckbox.addEventListener('change', async () => {
         try {
-            // Call new API endpoint (to be created)
             await api.toggle_reminder_done(reminderData.id, doneCheckbox.checked);
             onUpdate(); // Refresh the list
         } catch (error) {
@@ -94,24 +199,24 @@ export function renderReminderItem(reminderData, api, onUpdate) {
             doneCheckbox.checked = !doneCheckbox.checked;
         }
     });
-
     doneLabel.appendChild(doneCheckbox);
     doneLabel.appendChild(document.createTextNode('Done'));
+    controlsDiv.appendChild(doneLabel);
 
-    // --- Edit Time Button (now toggles edit form) ---
-    const editTimeBtn = document.createElement('button');
-    editTimeBtn.textContent = 'Edit'; // Shorter name
-    editTimeBtn.style.padding = '3px 8px';
-    editTimeBtn.style.fontSize = '0.85em';
-    editTimeBtn.style.cursor = 'pointer';
+    // Edit Button
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.title = 'Edit reminder time and recurrence';
+    controlsDiv.appendChild(editBtn);
 
-    // --- Clear Reminder Button (remains mostly the same) ---
-    const clearReminderBtn = document.createElement('button');
-    clearReminderBtn.textContent = 'Clear Reminder';
-    clearReminderBtn.onclick = async () => {
-        if (confirm("Are you sure you want to remove the reminder time and recurrence for this message?")) {
+    // Clear Button
+    const clearBtn = document.createElement('button');
+    clearBtn.textContent = 'Clear';
+    clearBtn.title = 'Clear reminder time and recurrence';
+    clearBtn.onclick = async () => {
+        if (confirm("Clear reminder time and recurrence?")) {
             try {
-                await api.edit_message(reminderData.id, { remind: null, reoccurences: null }); // Clear both
+                await api.edit_message(reminderData.id, { remind: null, reoccurences: null });
                 onUpdate();
             } catch (error) {
                 console.error("Failed to clear reminder:", error);
@@ -119,59 +224,40 @@ export function renderReminderItem(reminderData, api, onUpdate) {
             }
         }
     };
+    controlsDiv.appendChild(clearBtn);
 
-    controlsDiv.appendChild(doneLabel);
-    controlsDiv.appendChild(editTimeBtn);
-    controlsDiv.appendChild(clearReminderBtn);
-
-    mainContentDiv.appendChild(contentDiv);
-    mainContentDiv.appendChild(detailsDiv);
-    mainContentDiv.appendChild(controlsDiv);
-    li.appendChild(mainContentDiv);
-
-    // --- Edit Form (Initially Hidden) ---
-    const editFormDiv = document.createElement('div');
-    editFormDiv.style.display = 'none'; // Initially hidden
-    editFormDiv.style.marginTop = '10px';
-    editFormDiv.style.paddingTop = '10px';
-    editFormDiv.style.borderTop = '1px solid #555';
-    editFormDiv.style.flexDirection = 'column';
-    editFormDiv.style.gap = '8px';
-
-    // Helper to format date/time for input fields
+    // --- Populate Edit Form HTML --- 
+    const editFormDiv = li.querySelector('.reminder-edit-form');
     const formatDateForInput = (date) => date ? date.toISOString().split('T')[0] : '';
     const formatTimeForInput = (date) => date ? date.toTimeString().substring(0, 5) : '';
 
     editFormDiv.innerHTML = `
-        <div style="display: flex; gap: 8px; align-items: center;">
-            <label style="color:#ccc;" for="remindDate_${reminderData.id}">Date:</label>
-            <input type="date" id="remindDate_${reminderData.id}" style="flex-grow: 1;" />
-            <label style="color:#ccc;" for="remindTime_${reminderData.id}">Time:</label>
-            <input type="time" id="remindTime_${reminderData.id}" />
+        <div class="edit-form-row">
+            <label for="remindDate_${reminderData.id}">Date:</label>
+            <input type="date" id="remindDate_${reminderData.id}" value="${formatDateForInput(currentRemindTime)}" />
+            <label for="remindTime_${reminderData.id}">Time:</label>
+            <input type="time" id="remindTime_${reminderData.id}" value="${formatTimeForInput(currentRemindTime)}" />
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-            <label style="color:#ccc;" for="recurrenceType_${reminderData.id}">Repeat:</label>
+        <div class="edit-form-row">
+            <label for="recurrenceType_${reminderData.id}">Repeat:</label>
             <select id="recurrenceType_${reminderData.id}">
                 <option value="none">None</option>
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
             </select>
         </div>
-        <div id="weeklyDays_${reminderData.id}" style="display: none; gap: 5px; flex-wrap: wrap; margin-left: 50px;">
-            ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => `
-                <label style="color:#bbb; font-size: 0.9em;">
-                    <input type="checkbox" name="weekday_${reminderData.id}" value="${index + 1}" /> ${day}
-                </label>
+        <div class="weekly-days" id="weeklyDays_${reminderData.id}">
+            ${Object.entries(dayMap).map(([value, day]) => `
+                <label><input type="checkbox" name="weekday_${reminderData.id}" value="${value}" /> ${day}</label>
             `).join('')}
         </div>
-        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 5px;">
+        <div class="edit-actions">
             <button type="button" class="save-reminder-btn">Save</button>
             <button type="button" class="cancel-reminder-btn">Cancel</button>
         </div>
     `;
-    li.appendChild(editFormDiv);
 
-    // Get form elements
+    // --- Edit Form Logic --- 
     const dateInput = editFormDiv.querySelector(`#remindDate_${reminderData.id}`);
     const timeInput = editFormDiv.querySelector(`#remindTime_${reminderData.id}`);
     const recurrenceSelect = editFormDiv.querySelector(`#recurrenceType_${reminderData.id}`);
@@ -180,11 +266,13 @@ export function renderReminderItem(reminderData, api, onUpdate) {
     const saveBtn = editFormDiv.querySelector('.save-reminder-btn');
     const cancelBtn = editFormDiv.querySelector('.cancel-reminder-btn');
 
-    // Toggle Edit Form Visibility
-    editTimeBtn.onclick = () => {
-        // Populate form before showing
+    // Function to set initial/current form state
+    const populateEditForm = () => {
         dateInput.value = formatDateForInput(currentRemindTime);
         timeInput.value = formatTimeForInput(currentRemindTime);
+        let currentRecurrence = null;
+        try { currentRecurrence = reminderData.reoccurences ? JSON.parse(reminderData.reoccurences) : null; } catch {}
+        
         if (currentRecurrence) {
             recurrenceSelect.value = currentRecurrence.type || 'none';
             if (currentRecurrence.type === 'weekly') {
@@ -199,35 +287,31 @@ export function renderReminderItem(reminderData, api, onUpdate) {
             recurrenceSelect.value = 'none';
             weeklyDaysDiv.style.display = 'none';
         }
-        editFormDiv.style.display = 'flex';
-        mainContentDiv.style.display = 'none'; // Hide main content when editing
+        // Ensure initial visibility state is correct based on select value
+        weeklyDaysDiv.style.display = (recurrenceSelect.value === 'weekly') ? 'flex' : 'none';
     };
 
-    // Cancel Button Logic
+    editBtn.onclick = () => {
+        populateEditForm();
+        li.classList.add('editing');
+    };
+
     cancelBtn.onclick = () => {
-        editFormDiv.style.display = 'none';
-        mainContentDiv.style.display = 'flex'; // Show main content again
+        li.classList.remove('editing');
     };
 
-    // Show/Hide Weekly Days Checkboxes
     recurrenceSelect.onchange = () => {
         weeklyDaysDiv.style.display = (recurrenceSelect.value === 'weekly') ? 'flex' : 'none';
     };
 
-    // Save Button Logic
     saveBtn.onclick = async () => {
         const dateVal = dateInput.value;
         const timeVal = timeInput.value;
-
         if (!dateVal || !timeVal) {
             alert("Please select both date and time.");
             return;
         }
-
-        // Format date and time to YYYY-MM-DD-HH:MM
-        const remindStr = `${dateVal}-${timeVal.replace(':', ':')}`.replace('T', '-'); // Should match YYYY-MM-DD-HH:MM
-
-        // Construct recurrence object
+        const remindStr = `${dateVal}-${timeVal.replace(':', ':')}`;
         let newRecurrence = null;
         const recurrenceType = recurrenceSelect.value;
         if (recurrenceType === 'daily') {
@@ -243,13 +327,11 @@ export function renderReminderItem(reminderData, api, onUpdate) {
                 return;
             }
         }
-
         const recurrenceJson = newRecurrence ? JSON.stringify(newRecurrence) : null;
-
         try {
-            // Call API with remind and reoccurences
-            await api.edit_message(reminderData.id, { remind: remindStr, reoccurences: recurrenceJson });
-            onUpdate(); // Refresh list
+            // Use positional arguments: id, content, project, remind, importance, processed, done, reoccurences
+            await api.edit_message(reminderData.id, undefined, undefined, remindStr, undefined, undefined, undefined, recurrenceJson);
+            onUpdate(); // Refresh list (will close edit form automatically)
         } catch (error) {
             console.error("Failed to save reminder changes:", error);
             alert(`Error saving reminder: ${error.message || error}`);

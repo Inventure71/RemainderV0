@@ -10,8 +10,48 @@ export class Message {
     li.className = 'list-item';
     li.tabIndex = 0;
     li.dataset.msgId = this.id;
+    if (this.done) {
+      li.classList.add('message-is-done');
+    }
+
+    // Define styles here for better encapsulation or ensure they are in style.css
+    // For .message-is-done and .done-status-bubble and .popout-menu z-index
 
     li.innerHTML = `
+      <style>
+        .list-item.message-is-done > .message-body {
+          opacity: 0.6;
+        }
+        .bubble.done-status-bubble {
+          background-color: #5cb85c; /* Green */
+          color: white;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 0.8em;
+        }
+        .popout-menu {
+          position: absolute; /* Needed for z-index to properly stack */
+          z-index: 100; /* Make sure menu is on top */
+          /* other styles like background, border, etc., should be in existing CSS */
+        }
+        /* Add styles for the meta container */
+        .message-meta {
+          display: flex;
+          align-items: center; /* Vertically align items in the center */
+          flex-wrap: wrap;     /* Allow bubbles to wrap on smaller screens */
+          gap: 8px;            /* Consistent spacing between bubbles */
+          margin-top: 5px;     /* Add some space above the bubbles line */
+        }
+        /* Add styles for individual bubbles for consistency */
+        .message-meta .bubble {
+          padding: 2px 6px; /* Consistent vertical (2px) and horizontal (6px) padding */
+          display: inline-flex; /* Use flex to help center content within the bubble itself */
+          align-items: center;
+          justify-content: center;
+          line-height: 1.2; /* Adjust line height for better vertical centering of text/icons */
+          /* Existing bubble styles like border-radius, font-size should be inherited or defined globally */
+        }
+      </style>
       <div class="message-body cool-message">
         <div class="message-header" ${this.extra ? `title="Context: ${this.extra}"` : ''}>${this.content}</div>
         <div class="message-meta">
@@ -21,13 +61,8 @@ export class Message {
           ${this.project ? `<span class="bubble project-bubble">${this.project}</span>` : ''}
           ${this.remind ? `<span class="bubble remind-bubble">🔔 ${this.remind}</span>` : ''}
           ${this.extra ? `<span class="bubble context-bubble" title="Context: ${this.extra}" data-tooltip="${this.extra}">extra</span>` : ''}
-          <label class="done-toggle">
-            <input type="checkbox" class="done-checkbox" ${this.done ? 'checked' : ''}>
-            <span class="done-label">DONE</span>
-          </label>
-        </div>
-        <div class="message-tags">
-          ${typeof this.importance === 'string' ? `<span class="tag importance-${this.importance.toLowerCase()}">${this.importance}</span>` : ''}
+          ${this.done ? '<span class="bubble done-status-bubble">DONE</span>' : ''}
+          ${typeof this.importance === 'string' ? `<span class="bubble importance-bubble importance-${this.importance.toLowerCase()}">${this.importance}</span>` : ''}
         </div>
       </div>
       <div class="menu-container">
@@ -38,11 +73,78 @@ export class Message {
             <li class="change-item">Change project ▸
               <ul class="project-sublist"></ul>
             </li>
+            <li class="done-action-item">${this.done ? '🟡 Mark as Not Done' : '🟢 Mark as Done'}</li>
             <li class="delete-item">🗑️ Delete</li>
           </ul>
         </div>
       </div>
     `;
+
+    // Add image previews if they exist
+    if (this.images && this.images.length > 0) {
+      const messageBody = li.querySelector('.message-body');
+      if (messageBody) {
+        const previewsContainer = document.createElement('div');
+        previewsContainer.className = 'message-image-previews';
+        previewsContainer.style.marginTop = '8px'; // Keep some space from message text
+        previewsContainer.style.marginBottom = '8px'; // Add space before bubbles
+        previewsContainer.style.display = 'flex';
+        // previewsContainer.style.flexWrap = 'wrap'; // Remove for horizontal scrolling
+        previewsContainer.style.overflowX = 'auto';   // Enable horizontal scroll
+        previewsContainer.style.whiteSpace = 'nowrap'; // Keep images in one line for scrolling
+        previewsContainer.style.gap = '8px';
+
+        this.images.forEach(image => {
+          const imgThumb = document.createElement('img');
+          // Ensure path is properly formed - we need to make sure it starts with a slash
+          // but doesn't have double slashes
+          let imagePath = image.file_path;
+          if (!imagePath.startsWith('/')) {
+            imagePath = '/' + imagePath;
+          }
+          
+          imgThumb.src = imagePath;
+          imgThumb.alt = image.description || 'Message image';
+          imgThumb.style.width = '60px';
+          imgThumb.style.height = '60px';
+          imgThumb.style.objectFit = 'cover';
+          imgThumb.style.border = '1px solid #555';
+          imgThumb.style.borderRadius = '4px';
+          imgThumb.style.cursor = 'pointer';
+          imgThumb.dataset.fullsrc = imagePath;
+          
+          // Add an error handler to help debug image loading issues
+          imgThumb.onerror = function() {
+            console.error(`Failed to load image: ${imagePath}`);
+            // Provide a visual indication that the image failed to load
+            this.style.border = '2px solid red';
+            this.style.padding = '5px';
+            this.alt = 'Image failed to load';
+          };
+
+          imgThumb.addEventListener('click', () => {
+            if (window.openImageModal) {
+              window.openImageModal(imgThumb.dataset.fullsrc);
+            }
+          });
+          previewsContainer.appendChild(imgThumb);
+        });
+        // Insert previews before the message-meta div.
+        const messageMeta = messageBody.querySelector('.message-meta');
+        if (messageMeta) {
+            messageBody.insertBefore(previewsContainer, messageMeta);
+        } else {
+            // Fallback: Insert before header if no meta (shouldn't happen often)
+            const header = messageBody.querySelector('.message-header');
+            if(header) {
+                messageBody.insertBefore(previewsContainer, header.nextSibling); // Insert after header
+            } else {
+                 messageBody.prepend(previewsContainer); // Prepend if nothing else found
+            }
+        }
+      }
+    }
+
     this.attachMenuLogic(li);
     return li;
   }
@@ -57,6 +159,7 @@ export class Message {
             <li class="change-item">Change project ▸
               <ul class="project-sublist"></ul>
             </li>
+            <li class="done-action-item">${this.done ? '🟡 Mark as Not Done' : '🟢 Mark as Done'}</li>
             <li class="delete-item">🗑️ Delete</li>
           </ul>
         </div>
@@ -70,33 +173,69 @@ export class Message {
     const deleteItem = li.querySelector('.delete-item');
     const changeItem = li.querySelector('.change-item');
     const projectSublist = li.querySelector('.project-sublist');
-    const doneCheckbox = li.querySelector('.done-checkbox');
+    const doneActionItem = li.querySelector('.done-action-item');
     let projectsLoaded = false;
 
     // Try to get the latest API reference in case it became available
     const currentApi = this.api || window.pywebview?.api;
 
-    // Add event listener for the done checkbox
-    if (doneCheckbox) {
-      doneCheckbox.addEventListener('change', (e) => {
-        const done = e.target.checked;
+    // Edit and delete actions
+    editItem.addEventListener('click', e => { 
+        e.stopPropagation(); 
+        window.actions.editMessageWithProject(this.id, this.project||''); 
+        menuContainer.classList.remove('open'); // Close menu
+    });
+    deleteItem.addEventListener('click', e => { 
+        e.stopPropagation(); 
+        window.actions.deleteMessage(this.id); 
+        menuContainer.classList.remove('open'); // Close menu
+    });
+
+    // New Done Action Item Handler
+    if (doneActionItem) {
+      doneActionItem.addEventListener('click', e => {
+        e.stopPropagation();
+        this.done = !this.done; // Toggle local state
+
         if (currentApi) {
-          currentApi.edit_message(this.id, undefined, undefined, undefined, undefined, undefined, done);
-          this.done = done; // Update the local state
+          currentApi.edit_message(this.id, undefined, undefined, undefined, undefined, undefined, this.done)
+            .then(() => {
+                // Successfully updated on backend
+                // Update UI
+                doneActionItem.textContent = this.done ? '🟡 Mark as Not Done' : '🟢 Mark as Done';
+                li.classList.toggle('message-is-done', this.done);
+                
+                // Update or add/remove the status bubble
+                let statusBubble = li.querySelector('.message-meta .done-status-bubble');
+                if (this.done) {
+                  if (!statusBubble) {
+                    statusBubble = document.createElement('span');
+                    statusBubble.className = 'bubble done-status-bubble';
+                    statusBubble.textContent = 'DONE';
+                    // Find a good place to insert it, e.g., after context bubble or at the end of meta
+                    const metaDiv = li.querySelector('.message-meta');
+                    const contextBubble = metaDiv.querySelector('.context-bubble');
+                    if (contextBubble) {
+                        contextBubble.insertAdjacentElement('afterend', statusBubble);
+                    } else {
+                        metaDiv.appendChild(statusBubble);
+                    }
+                  }
+                  statusBubble.style.display = ''; // Ensure visible
+                } else {
+                  if (statusBubble) {
+                    statusBubble.style.display = 'none'; // Or statusBubble.remove();
+                  }
+                }
+            })
+            .catch(err => {
+                console.error("Failed to update done status:", err);
+                this.done = !this.done; // Revert on error
+            });
         }
+        menuContainer.classList.remove('open'); // Close menu
       });
     }
-
-    // Shift the pop‑out menu slightly upward for better positioning
-    const popoutMenu = menuContainer.querySelector('.popout-menu');
-    if (popoutMenu) {
-      // Negative margin moves the submenu up; adjust the value to taste
-      popoutMenu.style.marginTop = '-15px';
-    }
-
-    // Edit and delete actions
-    editItem.addEventListener('click', e => { e.stopPropagation(); window.actions.editMessageWithProject(this.id, this.project||''); });
-    deleteItem.addEventListener('click', e => { e.stopPropagation(); window.actions.deleteMessage(this.id); });
 
     // Lazy-load projects on hover of "Change project"
     changeItem.addEventListener('mouseenter', () => {
@@ -120,6 +259,7 @@ export class Message {
                   projBubble.style.background = proj.color;
                   projBubble.style.color = getContrast(proj.color);
                 }
+                menuContainer.classList.remove('open'); // Close menu after selecting a project
               });
               projectSublist.appendChild(item);
             });
