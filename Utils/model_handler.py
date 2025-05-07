@@ -412,22 +412,30 @@ class ModelClient:
 
         return response, conversation_history
 
-    def select_messages(self, user_text, project=None, use_history=False, history=None):
+    def select_messages(self, user_text, project=None, use_history=False, history=None, context_string=None):
         """
         Implements the logic for selecting related messages to a user query, as in the original widget_model_chat.py.
         Returns (response, history)
         """
-        from DatabaseUtils.database_messages import MessageDatabaseHandler
-        message_db = MessageDatabaseHandler()
-        if project is not None:
-            messages = message_db.get_project_messages(project)
+        # If a pre-built context string is provided (including image descriptions), use it
+        if context_string:
+            print(f"Using provided context string with length {len(context_string)}")
+            cleared_messages_str = context_string
         else:
-            messages = message_db.get_project_messages(None)
-        cleared_messages = []
-        cleared_messages_str = ""
-        for message in messages:
-            cleared_messages.append({"id": message["id"], "content": message["content"], "project": message["project"]})
-            cleared_messages_str += f"ID: {message['id']}, Content: {message['content']}, Project: {message['project']}\n"
+            # Legacy code path - build a simple context string without image descriptions
+            from DatabaseUtils.database_messages import MessageDatabaseHandler
+            message_db = MessageDatabaseHandler()
+            if project is not None:
+                messages = message_db.get_project_messages(project)
+            else:
+                messages = message_db.get_project_messages(None)
+            cleared_messages = []
+            cleared_messages_str = ""
+            for message in messages:
+                cleared_messages.append({"id": message["id"], "content": message["content"], "project": message["project"]})
+                cleared_messages_str += f"ID: {message['id']}, Content: {message['content']}, Project: {message['project']}\n"
+            print("WARNING: Using legacy context builder without image descriptions")
+        
         if use_history:
             hist = history
         else:

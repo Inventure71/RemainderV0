@@ -156,7 +156,26 @@ export function renderModelChatSidebar(container, context = {}) {
                             likelihoodIndicator = '<span style="color:orange; font-style:italic; font-size:0.9em;">(Less Likely)</span> ';
                             likelihoodClass = 'likelihood-low';
                         }
-                        const displayContent = safeContentPreview.length > 120 ? safeContentPreview.substring(0, 120) + '...' : safeContentPreview;
+                        
+                        // Handle empty content but message has images
+                        let displayContent;
+                        const hasImages = m.original_message_data && m.original_message_data.has_images;
+                        
+                        if (!safeContentPreview.trim() && hasImages) {
+                            // If message has only images with no text content
+                            displayContent = '<span style="color:#8af;">🖼️ [Image only]</span>';
+                        } else {
+                            // Normal text content display with truncation
+                            displayContent = safeContentPreview.length > 120 ? 
+                                safeContentPreview.substring(0, 120) + '...' : 
+                                safeContentPreview;
+                            
+                            // If message has both text and images, add an image icon
+                            if (hasImages) {
+                                displayContent += ' <span style="color:#8af;">🖼️</span>';
+                            }
+                        }
+                        
                         const targetProjectName = m.original_message_data?.project || '';
 
                         // Simplified HTML for the selected message content

@@ -49,6 +49,7 @@ def get_settings_file_path():
 
 DEFAULT_SETTINGS = {
     "clipboard_save_count": 5,
+    "include_image_descriptions": True,  # Whether to include image descriptions in context
     # Add other future settings here
 }
 # --- End Settings File Configuration ---
@@ -570,52 +571,53 @@ class Api:
             db.close()
 
     def model_chat(self, prompt, project=None, use_history=False, history=None):
-        try:
-            log_context_name = project
-            if project is None:
-                log_context_name = f"Main Chat (Show Clips: {self._show_clips_in_main_chat})"
-            elif project == CLIPBOARD_PROJECT_NAME:
-                log_context_name = "Saved Clips Project"
-            print(f"[model_chat] Called for context: {log_context_name}")
+        """
+        Interact with the model, providing the appropriate context based on the project.
+        """
+        # Get history if using
+        if use_history:
+            chat_history = self._get_chat_history(project)
+        else:
+            chat_history = []
+
+        # Get messages from cache/DB
+        messages_data = self._get_messages_with_cache(project)
+        include_image_descriptions = self.settings.get("include_image_descriptions", DEFAULT_SETTINGS["include_image_descriptions"])
+        
+        # Format messages into a context string for the model
+        context_string = ""
+        if not project:
+            context_title = "Main Chat"
+            if self._show_clips_in_main_chat:
+                context_title += " (including Saved Clips)"
+        else:
+            context_title = f"Project: {project}"
+
+        for msg in messages_data:
+            # Core message information
+            msg_content = msg.get('content', '')
+            msg_id = msg.get('id', '')
+            msg_timestamp = msg.get('timestamp', '')
+            msg_project = msg.get('project', '')
+            msg_extra = msg.get('extra', '')
             
-            context_messages_list = self._get_messages_with_cache(project)
+            # Build the base context line
+            context_line = f"ID: {msg_id}, Timestamp: {msg_timestamp}, Project: {msg_project}, Extra: {msg_extra}, Text: {msg_content}"
             
-            print(f"[model_chat] Context: {log_context_name} - Messages fetched by _get_messages_with_cache: {len(context_messages_list)}") # Enhanced log
-            if context_messages_list:
-                print(f"[model_chat] First message ID (of {len(context_messages_list)}): {context_messages_list[0].get('id')}, Content snippet: {str(context_messages_list[0].get('content'))[:80]}...")
-                if len(context_messages_list) > 1:
-                    print(f"[model_chat] Second message ID (if exists): {context_messages_list[1].get('id')}, Content snippet: {str(context_messages_list[1].get('content'))[:80]}...")
-            else:
-                print(f"[model_chat] No messages found in context for {log_context_name}.")
+            # Add image descriptions if present and enabled
+            if include_image_descriptions and 'images' in msg and msg['images']:
+                for i, img in enumerate(msg['images']):
+                    if img.get('description'):
+                        context_line += f"\n[Image {i+1} Description: {img['description']}]"
+            
+            context_string += context_line + "\n\n"
 
-            # New message string format for model_chat
-            messages_str_lines = []
-            for msg in context_messages_list:
-                line = (
-                    f"ID: {msg.get('id')}, "
-                    f"Timestamp: {msg.get('timestamp')}, "
-                    f"Project: {msg.get('project', 'N/A')}, "
-                    f"Extra: {msg.get('extra', 'N/A')}, "
-                    f"Text: {msg.get('content')}"
-                )
-                messages_str_lines.append(line)
-            messages_str = "\\n".join(messages_str_lines)
-
-            # History: use in-memory chat history unless a new one is provided
-            if use_history and history is not None:
-                gemini_history = [h for h in history if isinstance(h, dict) and 'role' in h and 'content' in h]
-            else:
-                gemini_history = self._get_chat_history(project)
-
-            # Generate response
-            result, all_history = model_handler.generate(prompt, messages_str, json=0, history=gemini_history)
-            self._set_chat_history(all_history, project)
-            return {'response': result, 'history': all_history}
-        except Exception as e:
-            import traceback
-            print('model_chat error:', e)
-            print(traceback.format_exc())
-            return {'response': None, 'history': [], 'error': str(e), 'traceback': traceback.format_exc()}
+        print(f"Generating model chat response in context: {context_title}")
+        
+        response, new_history = model_handler.generate(prompt=prompt, messages=context_string, json=0, history=chat_history)
+        self._set_chat_history(new_history, project)
+        
+        return {"response": response}
 
     def run_telegram_fetch(self):
         """Fetch new Telegram messages and store them in DB and JSON."""
@@ -635,145 +637,105 @@ class Api:
     def model_select_messages(self, prompt, messages, history=None, project=None):
         # The `messages` argument is deprecated for this function as it now fetches its own full context.
         # It's kept for signature compatibility but ignored if empty.
+        print(f"[model_select_messages] Called for context: {project or 'Main Chat'} (Show Clips: {self._show_clips_in_main_chat}) for {prompt}")
+        
+        # Get history if it was passed
+        if history is None:
+            chat_history = []
+        else:
+            chat_history = history
+        
+        # Get comprehensive message list directly with proper project filtering
+        messages_data = self._get_messages_with_cache(project)
+        include_image_descriptions = self.settings.get("include_image_descriptions", DEFAULT_SETTINGS["include_image_descriptions"])
+        
+        # Format messages into a context string for the model
+        context_string = ""
+        for msg in messages_data:
+            # Core message information
+            msg_content = msg.get('content', '')
+            msg_id = msg.get('id', '')
+            msg_timestamp = msg.get('timestamp', '')
+            msg_project = msg.get('project', '')
+            msg_extra = msg.get('extra', '')
+            
+            # Build the context line
+            context_line = f"ID: {msg_id}, Timestamp: {msg_timestamp}, Project: {msg_project}, Extra: {msg_extra}, Text: {msg_content}"
+            
+            # Add image descriptions if present and enabled
+            if include_image_descriptions and 'images' in msg and msg['images']:
+                for i, img in enumerate(msg['images']):
+                    if img.get('description'):
+                        context_line += f"\n[Image {i+1} Description: {img['description']}]"
+            
+            context_string += context_line + "\n\n"
+        
+        # Call the model handler with our prepared context
+        response, new_history = model_handler.select_messages(
+            user_text=prompt,
+            project=project,
+            use_history=False,
+            history=chat_history,
+            context_string=context_string  # Pass the prepared context string with image descriptions
+        )
+        
+        # Create a more detailed response from the Gemini model response
         try:
-            log_context_name = project
-            if project is None:
-                log_context_name = f"Main Chat (Show Clips: {self._show_clips_in_main_chat}) for Selection"
-            elif project == CLIPBOARD_PROJECT_NAME:
-                log_context_name = "Saved Clips Project for Selection"
-            print(f"[model_select_messages] Called for context: {log_context_name}")
-
-            # Get comprehensive message list using the new cache system
-            # This list contains full message objects, needed for verification later.
-            self._current_messages_for_selection_context = self._get_messages_with_cache(project)
+            import json
+            response_data = json.loads(response)
+            model_selected_messages = response_data.get('messages', [])
             
-            print(f"[model_select_messages] Context: {log_context_name} - Messages fetched: {len(self._current_messages_for_selection_context)}")
-
-            # New message string format for model_select_messages context
-            messages_str_lines = []
-            for msg in self._current_messages_for_selection_context:
-                line = (
-                    f"ID: {msg.get('id')}, "
-                    f"Timestamp: {msg.get('timestamp')}, "
-                    f"Project: {msg.get('project', 'N/A')}, "
-                    f"Extra: {msg.get('extra', 'N/A')}, "
-                    f"Text: {msg.get('content')}"
-                )
-                messages_str_lines.append(line)
-            context_messages_for_model_str = "\\n".join(messages_str_lines)
-            
-            gemini_history = None
-            if history and isinstance(history, list):
-                gemini_history = [h for h in history if isinstance(h, dict) and 'role' in h and 'content' in h]
-
-            # Generate response (json=1 for message selection mode)
-            # The model_handler will use the new prompt and schema for json=1
-            raw_model_result_str, all_history = model_handler.generate(
-                prompt,
-                context_messages_for_model_str, # Pass the newly formatted string as context
-                json=1, 
-                history=gemini_history
-            )
-            
-            # --- New Parsing and Verification Logic --- 
-            parsed_selections = []
-            try:
-                model_output = json.loads(raw_model_result_str)
-                selected_by_model = model_output.get("messages", [])
-
-                for item in selected_by_model:
-                    msg_id = item.get("id") 
-                    model_provided_first_words = item.get("first_words") # Changed from first_5_words
-                    explanation = item.get("explanation")
-
-                    if not msg_id or not model_provided_first_words or explanation is None:
-                        print(f"[model_select_messages] Skipping incomplete selection from model: {item}")
-                        continue
-
-                    original_message = next((m for m in self._current_messages_for_selection_context if str(m.get('id')) == str(msg_id)), None)
-                    
-                    likelihood = "high"
-                    actual_content_for_display = "Original message not found."
-                    # These will store the actual segment of words used for comparison by the backend
-                    actual_words_for_comparison_display = "N/A"
-                    model_words_for_comparison_display = model_provided_first_words # what the model gave
-
+            # Enhance the response with additional metadata
+            for msg in model_selected_messages:
+                msg_id = msg.get('id')
+                if msg_id:
+                    # Find the original message in our full messages_data collection
+                    original_message = next((m for m in messages_data if str(m.get('id')) == str(msg_id)), None)
                     if original_message:
-                        actual_content_for_display = original_message.get('content', '')
-                        original_msg_words = actual_content_for_display.split()
-                        model_claimed_words = model_provided_first_words.split()
-                        
-                        # Determine the number of words to actually compare
-                        # Compare up to the number of words the model provided, capped at 5, and also by actual message length.
-                        num_model_words = len(model_claimed_words)
-                        num_actual_words = len(original_msg_words)
-                        
-                        # We will compare based on the shorter of the two, up to a max of 5 words from original message if model provided more
-                        # Or up to number of words model provided if it's less than 5 and less than actual.
-                        words_to_compare_count = min(num_model_words, num_actual_words, 5) 
-                        
-                        # Slices for comparison
-                        model_slice_to_compare = model_claimed_words[:words_to_compare_count]
-                        actual_slice_to_compare = original_msg_words[:words_to_compare_count]
-                        
-                        actual_words_for_comparison_display = " ".join(actual_slice_to_compare)
-                        # For display, we might show the model's claimed segment up to the comparison length too
-                        model_words_for_comparison_display = " ".join(model_slice_to_compare) 
-
-                        # Perform the comparison
-                        if " ".join(model_slice_to_compare).lower() != " ".join(actual_slice_to_compare).lower():
-                            likelihood = "less likely"
-                            print(f"[model_select_messages] Likelihood for ID {msg_id} set to 'less likely'. Model said: '{model_provided_first_words}' (compared '{model_words_for_comparison_display}'), Actual starts with: '{actual_words_for_comparison_display}'")
-                        
-                        parsed_selections.append({
-                            "id": msg_id, 
-                            "content_preview": actual_content_for_display,
-                            "first_words_model_raw": model_provided_first_words, # What model originally said
-                            "first_words_model_compared_segment": model_words_for_comparison_display, # The segment of model's words used in comparison
-                            "first_words_actual_compared_segment": actual_words_for_comparison_display, # The segment of actual message words used
-                            "explanation": explanation,
-                            "likelihood": likelihood,
-                            "original_message_data": original_message 
-                        })
-                    else:
-                        print(f"[model_select_messages] Original message for ID {msg_id} not found in context.")
-                        parsed_selections.append({
-                            "id": msg_id, 
-                            "content_preview": f"Error: Original for ID {msg_id} not found.",
-                            "first_words_model_raw": model_provided_first_words,
-                            "first_words_model_compared_segment": model_provided_first_words, # Show what model said
-                            "first_words_actual_compared_segment": "N/A",
-                            "explanation": explanation,
-                            "likelihood": "less likely",
-                            "original_message_data": None
-                        })
-            except json.JSONDecodeError as je:
-                print(f"[model_select_messages] Error decoding JSON from model: {je}")
-                print(f"[model_select_messages] Raw model output was: {raw_model_result_str}")
-                # Fallback or error structure for frontend
-                return {'result': json.dumps({"messages": [], "error": "Failed to parse model selection response."}), 'history': all_history}
-            except Exception as e:
-                import traceback
-                print(f"[model_select_messages] Error processing model selections: {e}")
-                traceback.print_exc()
-                return {'result': json.dumps({"messages": [], "error": "Error processing selections."}), 'history': all_history}
-
-            # Return the structured data (frontend will need to adapt)
-            return {'result': json.dumps({"messages": parsed_selections}), 'history': all_history}
-
+                        # Add original message data including image info
+                        msg['original_message_data'] = {
+                            'project': original_message.get('project', ''),
+                            'has_images': bool(original_message.get('images') and len(original_message.get('images', [])) > 0)
+                        }
+                        # For debugging
+                        print(f"Enhanced message {msg_id}: has_images={msg['original_message_data']['has_images']}")
+            
+            # Return enhanced response with our modifications
+            enhanced_response = json.dumps(response_data)
+            result = {"result": enhanced_response}
+            return result
         except Exception as e:
-            import traceback
-            print('model_select_messages error:', e)
-            print(traceback.format_exc())
-            return {'result': None, 'history': [], 'error': str(e), 'traceback': traceback.format_exc()}
+            print(f"Error enhancing model_select_messages response: {e}")
+            # Return original response if enhancement fails
+            return {"result": response}
 
     def model_assign_projects(self, prompt, messages, projects, history=None):
         try:
             context_messages_str = messages
             if not messages or messages == "":
                 print("[model_assign_projects] WARNING: Message fetching bypasses new cache logic. Fetches all from primary DB.")
-                context_messages_str = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}{', Context: ' + msg['extra'] if msg.get('extra') else ''}" 
-                                         for msg in self._get_messages_with_cache()])
+                
+                # Get messages with cache to ensure image data is included
+                messages_data = self._get_messages_with_cache()
+                include_image_descriptions = self.settings.get("include_image_descriptions", DEFAULT_SETTINGS["include_image_descriptions"])
+                
+                # Build context with image descriptions
+                context_lines = []
+                for msg in messages_data:
+                    # Basic message info
+                    msg_line = f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}"
+                    if msg.get('extra'):
+                        msg_line += f", Context: {msg['extra']}"
+                    
+                    # Add image descriptions if present and enabled
+                    if include_image_descriptions and 'images' in msg and msg['images']:
+                        for i, img in enumerate(msg['images']):
+                            if img.get('description'):
+                                msg_line += f"\n[Image {i+1} Description: {img['description']}]"
+                    
+                    context_lines.append(msg_line)
+                
+                context_messages_str = "\n".join(context_lines)
 
             print("model assign projects requested")
             print("project:", projects)
@@ -801,8 +763,28 @@ class Api:
             context_messages_str = messages
             if not messages or messages == "":
                 print("[model_create_projects] WARNING: Message fetching bypasses new cache logic. Fetches all from primary DB.")
-                context_messages_str = "\n".join([f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}{', Context: ' + msg['extra'] if msg.get('extra') else ''}" 
-                                         for msg in self._get_messages_with_cache()])
+                
+                # Get messages with cache to ensure image data is included
+                messages_data = self._get_messages_with_cache()
+                include_image_descriptions = self.settings.get("include_image_descriptions", DEFAULT_SETTINGS["include_image_descriptions"])
+                
+                # Build context with image descriptions
+                context_lines = []
+                for msg in messages_data:
+                    # Basic message info
+                    msg_line = f"ID: {msg['id']}, Content: {msg['content']}, Project: {msg['project']}"
+                    if msg.get('extra'):
+                        msg_line += f", Context: {msg['extra']}"
+                    
+                    # Add image descriptions if present and enabled
+                    if include_image_descriptions and 'images' in msg and msg['images']:
+                        for i, img in enumerate(msg['images']):
+                            if img.get('description'):
+                                msg_line += f"\n[Image {i+1} Description: {img['description']}]"
+                    
+                    context_lines.append(msg_line)
+                
+                context_messages_str = "\n".join(context_lines)
 
             print("model create projects requested")
             print("messages:", messages)
@@ -870,6 +852,310 @@ class Api:
             print(traceback.format_exc())
             return {'success': False, 'error': str(e), 'traceback': traceback.format_exc()}
 
+    def process_unprocessed_images(self, max_images_per_batch=25):
+        """
+        Process unprocessed images by feeding them to Gemini for description generation.
+        
+        Args:
+            max_images_per_batch (int): Maximum number of images to process in a single batch
+            
+        Returns:
+            dict: Result of the operation including success status, number of images processed
+        """
+        try:
+            db_handler = db_messages.MessageDatabaseHandler()
+            
+            # First, get all images that don't have descriptions
+            self.cursor = db_handler.conn.cursor()
+            self.cursor.execute("""
+                SELECT mi.id, mi.message_id, mi.file_path, m.content 
+                FROM message_images mi
+                JOIN messages m ON mi.message_id = m.id
+                WHERE mi.description IS NULL OR mi.description = ''
+                LIMIT ?
+            """, (max_images_per_batch,))
+            
+            unprocessed_images = self.cursor.fetchall()
+            
+            if not unprocessed_images:
+                return {
+                    'success': True,
+                    'processed': 0,
+                    'message': 'No unprocessed images found'
+                }
+            
+            # Prepare the API request for Gemini
+            image_data = []
+            for img_id, msg_id, file_path, msg_content in unprocessed_images:
+                full_path = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), 
+                    "web", 
+                    file_path if not file_path.startswith('/') else file_path[1:]
+                )
+                
+                if os.path.exists(full_path):
+                    image_data.append({
+                        'img_id': img_id,
+                        'msg_id': msg_id,
+                        'file_path': full_path,
+                        'context': msg_content
+                    })
+                else:
+                    print(f"Warning: Image file not found: {full_path}")
+            
+            if not image_data:
+                return {
+                    'success': False,
+                    'processed': 0,
+                    'message': 'No valid image files found among unprocessed images'
+                }
+            
+            # Process the images with Gemini
+            descriptions = self._process_images_with_gemini(image_data)
+            if not descriptions:
+                return {
+                    'success': False,
+                    'processed': 0,
+                    'message': 'Failed to get descriptions from Gemini'
+                }
+            
+            # Update the database with descriptions
+            processed_count = 0
+            for img_id, description in descriptions.items():
+                db_handler.cursor.execute(
+                    "UPDATE message_images SET description = ? WHERE id = ?",
+                    (description, img_id)
+                )
+                processed_count += 1
+            
+            db_handler.conn.commit()
+            
+            # Clear cache to reflect the updated descriptions
+            self._message_cache.clear()
+            
+            return {
+                'success': True,
+                'processed': processed_count,
+                'total': len(unprocessed_images),
+                'message': f'Successfully processed {processed_count} images'
+            }
+        
+        except Exception as e:
+            import traceback
+            print(f"[Error] process_unprocessed_images failed: {e}")
+            print(traceback.format_exc())
+            return {'success': False, 'error': str(e)}
+        finally:
+            if 'db_handler' in locals():
+                db_handler.close()
+
+    def _process_images_with_gemini(self, image_data):
+        """
+        Process images with Gemini to get descriptions.
+        
+        Args:
+            image_data (list): List of dicts with image info (img_id, file_path, context)
+        
+        Returns:
+            dict: Mapping of image_id to description
+        """
+        try:
+            # If no images, return empty dict
+            if not image_data:
+                return {}
+            
+            # Prepare prompt for Gemini
+            system_prompt = """
+You are an expert image analyzer. Your task is to:
+1. Describe each image in detail
+2. Transcribe any visible text in the image
+3. Provide key information about what's shown
+
+You MUST respond in JSON format ONLY with the following structure:
+{
+  "images": [
+    {
+      "image_id": 123,
+      "description": "Detailed description of the image",
+      "text_content": "Any text visible in the image, or null if none"
+    },
+    ...
+  ]
+}
+
+Be thorough but concise. Focus on the most important details.
+Do not include any extra text, explanations, or markdown formatting outside the JSON structure.
+"""
+            
+            # Create multipart message for Gemini with images
+            contents = [
+                {
+                    "role": "user",
+                    "parts": [{"text": system_prompt}]
+                },
+                {
+                    "role": "user",
+                    "parts": [{"text": "Please analyze the following images:"}]
+                }
+            ]
+            
+            # Add image parts to the message
+            user_parts = []
+            for idx, img in enumerate(image_data):
+                # Add context if available
+                if img.get('context'):
+                    user_parts.append({"text": f"Image {idx+1} (ID: {img['img_id']}) context: {img['context']}"})
+                
+                # Read and encode image
+                with open(img['file_path'], 'rb') as image_file:
+                    image_bytes = image_file.read()
+                    mime_type = self._get_mime_type(img['file_path'])
+                    
+                    user_parts.append({
+                        "inline_data": {
+                            "mime_type": mime_type,
+                            "data": base64.b64encode(image_bytes).decode('utf-8')
+                        }
+                    })
+            
+            # Add the parts to the user message
+            contents.append({
+                "role": "user",
+                "parts": user_parts
+            })
+            
+            # Call Gemini with the multipart message
+            response = model_handler.gemini_client.models.generate_content(
+                model="gemini-2.5-flash-preview-04-17",
+                contents=contents
+            )
+            
+            # Process the response
+            try:
+                # First check if the response has a text attribute
+                if hasattr(response, 'text'):
+                    response_text = response.text
+                # Next check if the response has parts with text
+                elif hasattr(response, 'parts') and response.parts:
+                    response_text = response.parts[0].text
+                # Finally check if we can access it as a dictionary
+                elif hasattr(response, 'candidates') and response.candidates:
+                    response_text = response.candidates[0].content.parts[0].text
+                else:
+                    # Get as string
+                    response_text = str(response)
+                
+                # Now extract and parse the JSON from the response text
+                json_str = response_text
+                
+                # Handle case where JSON is within markdown code blocks
+                if "```json" in response_text:
+                    # Extract the JSON between ```json and ```
+                    json_str = response_text.split("```json")[1].split("```")[0].strip()
+                elif "```" in response_text:
+                    # Extract JSON from any code block
+                    json_str = response_text.split("```")[1].strip()
+                
+                # Clean any leading/trailing spaces and quotes
+                json_str = json_str.strip('" \n\t')
+                
+                # Parse the JSON
+                try:
+                    response_json = json.loads(json_str)
+                except json.JSONDecodeError:
+                    # If we can't parse the JSON, try to extract it with regex
+                    import re
+                    json_pattern = r'\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}'
+                    match = re.search(json_pattern, response_text)
+                    if match:
+                        try:
+                            response_json = json.loads(match.group(0))
+                        except:
+                            # Fallback to empty structure
+                            response_json = {"images": []}
+                    else:
+                        # Complete fallback
+                        response_json = {"images": []}
+                
+                results = {}
+                
+                # Extract descriptions and map to image IDs
+                for img_result in response_json.get('images', []):
+                    img_id = img_result.get('image_id')
+                    description = img_result.get('description', '')
+                    text_content = img_result.get('text_content')
+                    
+                    # Build proper description without raw JSON
+                    full_description = description if description else ""
+                    
+                    # Add text content if present and not null
+                    if text_content and text_content.lower() != 'null':
+                        if full_description:
+                            full_description += "\n\nText content:\n"
+                        else:
+                            full_description += "Text content:\n"
+                        full_description += text_content
+                    
+                    # Find the matching image data entry
+                    for img in image_data:
+                        if str(img['img_id']) == str(img_id):
+                            results[img['img_id']] = full_description
+                            break
+                
+                # If we couldn't match by ID, try to match by order
+                if not results and response_json.get('images'):
+                    for i, img_result in enumerate(response_json.get('images')):
+                        if i < len(image_data):
+                            img_id = image_data[i]['img_id']
+                            description = img_result.get('description', '')
+                            text_content = img_result.get('text_content')
+                            
+                            # Build proper description
+                            full_description = description if description else ""
+                            
+                            # Add text content if present and not null
+                            if text_content and text_content.lower() != 'null':
+                                if full_description:
+                                    full_description += "\n\nText content:\n"
+                                else:
+                                    full_description += "Text content:\n"
+                                full_description += text_content
+                                
+                            results[img_id] = full_description
+                
+                return results
+            except Exception as e:
+                print(f"Error parsing Gemini response: {e}")
+                # Fallback to direct text response if JSON parsing fails
+                results = {}
+                
+                # Try to assign the response to images sequentially
+                response_text = response.text
+                for i, img in enumerate(image_data):
+                    results[img['img_id']] = f"Auto-generated description: {response_text}"
+                
+                return results
+            
+        except Exception as e:
+            print(f"Error in _process_images_with_gemini: {e}")
+            return {}
+
+    def _get_mime_type(self, file_path):
+        """Determine MIME type based on file extension"""
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext == '.jpg' or ext == '.jpeg':
+            return 'image/jpeg'
+        elif ext == '.png':
+            return 'image/png'
+        elif ext == '.gif':
+            return 'image/gif'
+        elif ext == '.webp':
+            return 'image/webp'
+        elif ext == '.svg':
+            return 'image/svg+xml'
+        else:
+            return 'application/octet-stream'
+
     # --- Settings Management ---
     def _load_settings(self):
         settings_path = get_settings_file_path()
@@ -919,7 +1205,133 @@ class Api:
             return {"success": True, "message": f"Setting '{key}' updated to {value}."}
         else:
             return {"success": False, "error": f"Setting key '{key}' not found."}
-    # --- End Settings Management ---
+
+    def get_image_descriptions(self):
+        """Returns a list of all processed image descriptions for display/debugging purposes."""
+        try:
+            db_handler = db_messages.MessageDatabaseHandler()
+            self.cursor = db_handler.conn.cursor()
+            
+            # Query all images with descriptions
+            self.cursor.execute("""
+                SELECT mi.id, mi.message_id, mi.file_path, mi.description, m.content
+                FROM message_images mi
+                JOIN messages m ON mi.message_id = m.id
+                WHERE mi.description IS NOT NULL AND mi.description != ''
+                ORDER BY m.timestamp DESC
+            """)
+            
+            images_with_descriptions = []
+            for img_id, msg_id, file_path, description, msg_content in self.cursor.fetchall():
+                # Take only first 100 characters of message content for context
+                short_content = (msg_content[:100] + '...') if len(msg_content) > 100 else msg_content
+                
+                images_with_descriptions.append({
+                    "img_id": img_id,
+                    "msg_id": msg_id,
+                    "file_path": file_path,
+                    "short_content": short_content,
+                    "description": description
+                })
+            
+            return {
+                "success": True,
+                "images": images_with_descriptions,
+                "count": len(images_with_descriptions)
+            }
+            
+        except Exception as e:
+            import traceback
+            print(f"[Error] get_image_descriptions failed: {e}")
+            print(traceback.format_exc())
+            return {'success': False, 'error': str(e)}
+        finally:
+            if 'db_handler' in locals():
+                db_handler.close()
+
+    def clean_image_descriptions(self):
+        """Clean up existing image descriptions that contain raw JSON."""
+        try:
+            db_handler = db_messages.MessageDatabaseHandler()
+            cursor = db_handler.conn.cursor()
+            
+            # Get all images with descriptions
+            cursor.execute("""
+                SELECT id, description FROM message_images 
+                WHERE description IS NOT NULL AND description != ''
+            """)
+            
+            updates = 0
+            for row in cursor.fetchall():
+                img_id, description = row
+                
+                if "Auto-generated description: ```json" in description:
+                    try:
+                        # Extract the JSON content
+                        json_str = description.split("```json")[1].split("```")[0].strip()
+                        json_data = json.loads(json_str)
+                        
+                        # Format the cleaned description
+                        clean_description = ""
+                        for img_data in json_data.get('images', []):
+                            if clean_description:
+                                clean_description += "\n\n"
+                                
+                            # Add the description
+                            desc = img_data.get('description', '')
+                            if desc:
+                                clean_description += f"{desc}"
+                            
+                            # Add text content if present
+                            text = img_data.get('text_content')
+                            if text and text.lower() != 'null':
+                                clean_description += f"\n\nText content:\n{text}"
+                        
+                        # Update the database
+                        if clean_description:
+                            cursor.execute(
+                                "UPDATE message_images SET description = ? WHERE id = ?",
+                                (clean_description, img_id)
+                            )
+                            updates += 1
+                            
+                    except Exception as e:
+                        print(f"Error cleaning description for image ID {img_id}: {e}")
+                        continue
+            
+            db_handler.conn.commit()
+            return {"success": True, "cleaned": updates}
+            
+        except Exception as e:
+            import traceback
+            print(f"[Error] clean_image_descriptions failed: {e}")
+            print(traceback.format_exc())
+            return {'success': False, 'error': str(e)}
+        finally:
+            if 'db_handler' in locals():
+                db_handler.close()
+                
+    def clear_image_descriptions(self):
+        """Clear all image descriptions to allow reprocessing."""
+        try:
+            db_handler = db_messages.MessageDatabaseHandler()
+            cursor = db_handler.conn.cursor()
+            
+            # Clear all descriptions
+            cursor.execute("UPDATE message_images SET description = NULL")
+            affected = cursor.rowcount
+            db_handler.conn.commit()
+            
+            return {"success": True, "cleared": affected}
+            
+        except Exception as e:
+            import traceback
+            print(f"[Error] clear_image_descriptions failed: {e}")
+            print(traceback.format_exc())
+            return {'success': False, 'error': str(e)}
+        finally:
+            if 'db_handler' in locals():
+                db_handler.close()
 
 if __name__ == '__main__':
     api = Api()

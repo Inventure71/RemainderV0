@@ -717,3 +717,14 @@ body.modal-open #customModal {
   -moz-user-select: text !important;
   -ms-user-select: text !important;
 }
+
+/* Small button style for navbar */
+.navbar button.small-btn {
+  padding: 0.4em 0.9em;
+  font-size: 0.9em;
+  margin-right: 0.7em;
+}
+
+.navbar button.small-btn:hover {
+  background: #4e5a65;
+}

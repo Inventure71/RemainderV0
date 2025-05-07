@@ -28,6 +28,10 @@ export function renderMainChat(container, api) {
                     <div class="chat-options">
                         <input type="checkbox" id="showClipsFilter" />
                         <label for="showClipsFilter">Show Saved Clips in Main Chat</label>
+                        <label for="includeImageDescriptionsCheckbox" style="margin-left: 10px;">
+                            <input type="checkbox" id="includeImageDescriptionsCheckbox" checked />
+                            Include image descriptions
+                        </label>
                     </div>
                     <div id="messagesLoading" class="loading" hidden>Loading…</div>
                     <ul id="messagesList" class="scrollable-list"></ul>
@@ -239,6 +243,32 @@ export function renderMainChat(container, api) {
         } catch (err) {
             console.error("Error toggling clipboard filter state:", err);
             // Optionally, revert checkbox state or show an error to the user
+        }
+    });
+
+    // Get the image description checkbox and initialize it from settings
+    const includeImageDescriptionsCheckbox = document.getElementById('includeImageDescriptionsCheckbox');
+    if (api && typeof api.get_app_settings === 'function') {
+        api.get_app_settings().then(settings => {
+            if (settings && typeof settings.include_image_descriptions === 'boolean') {
+                includeImageDescriptionsCheckbox.checked = settings.include_image_descriptions;
+            }
+        }).catch(err => {
+            console.error("Error getting app settings:", err);
+        });
+    }
+
+    // Add event listener for the image descriptions checkbox
+    includeImageDescriptionsCheckbox.addEventListener('change', async () => {
+        try {
+            if (api && typeof api.update_setting === 'function') {
+                await api.update_setting('include_image_descriptions', includeImageDescriptionsCheckbox.checked);
+                loadMessages(api); // Reload messages to apply the new setting
+            } else {
+                console.error("API to update settings not available.");
+            }
+        } catch (err) {
+            console.error("Error updating include_image_descriptions setting:", err);
         }
     });
 }

@@ -95,6 +95,11 @@ export class Message {
         previewsContainer.style.gap = '8px';
 
         this.images.forEach(image => {
+          const imgContainer = document.createElement('div');
+          imgContainer.style.display = 'inline-block';
+          imgContainer.style.position = 'relative';
+          imgContainer.style.marginRight = '8px';
+          
           const imgThumb = document.createElement('img');
           // Ensure path is properly formed - we need to make sure it starts with a slash
           // but doesn't have double slashes
@@ -113,6 +118,27 @@ export class Message {
           imgThumb.style.cursor = 'pointer';
           imgThumb.dataset.fullsrc = imagePath;
           
+          // Add description indicator if available
+          if (image.description) {
+            imgThumb.title = image.description; // Add tooltip with description
+            
+            // Add a small info icon to indicate there's a description
+            const infoIcon = document.createElement('div');
+            infoIcon.innerHTML = 'ℹ️';
+            infoIcon.style.position = 'absolute';
+            infoIcon.style.bottom = '0';
+            infoIcon.style.right = '0';
+            infoIcon.style.backgroundColor = 'rgba(0,0,0,0.6)';
+            infoIcon.style.color = 'white';
+            infoIcon.style.padding = '2px';
+            infoIcon.style.borderRadius = '3px';
+            infoIcon.style.fontSize = '10px';
+            infoIcon.style.zIndex = '1';
+            infoIcon.title = image.description;
+            
+            imgContainer.appendChild(infoIcon);
+          }
+          
           // Add an error handler to help debug image loading issues
           imgThumb.onerror = function() {
             console.error(`Failed to load image: ${imagePath}`);
@@ -124,11 +150,15 @@ export class Message {
 
           imgThumb.addEventListener('click', () => {
             if (window.openImageModal) {
-              window.openImageModal(imgThumb.dataset.fullsrc);
+              // Pass the description to the image modal
+              window.openImageModal(imgThumb.dataset.fullsrc, image.description);
             }
           });
-          previewsContainer.appendChild(imgThumb);
+          
+          imgContainer.appendChild(imgThumb);
+          previewsContainer.appendChild(imgContainer);
         });
+        
         // Insert previews before the message-meta div.
         const messageMeta = messageBody.querySelector('.message-meta');
         if (messageMeta) {

@@ -396,84 +396,125 @@ const modalImageContent = document.getElementById('modalImageContent');
 const modalImageLink = document.getElementById('modalImageLink');
 const closeImageModalBtn = document.getElementById('closeImageModal');
 
-window.openImageModal = function(imageSrc) {
-  if (imageViewerModal && modalImageContent && modalImageLink) {
-    // Show loading state
-    imageViewerModal.style.display = 'flex';
-    document.body.classList.add('image-modal-open');
+window.openImageModal = function(imageSrc, imageDescription) {
+  // Create a modal for viewing the full-size image
+  const modal = document.createElement('div');
+  modal.id = 'imageViewerModal';
+  modal.style.position = 'fixed';
+  modal.style.top = '0';
+  modal.style.left = '0';
+  modal.style.width = '100%';
+  modal.style.height = '100%';
+  modal.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+  modal.style.display = 'flex';
+  modal.style.flexDirection = 'column';
+  modal.style.justifyContent = 'center';
+  modal.style.alignItems = 'center';
+  modal.style.zIndex = '1000';
+  
+  // Create container to hold both image and description
+  const contentContainer = document.createElement('div');
+  contentContainer.style.maxWidth = '90%';
+  contentContainer.style.maxHeight = '90%';
+  contentContainer.style.position = 'relative';
+  contentContainer.style.display = 'flex';
+  contentContainer.style.flexDirection = 'column';
+  contentContainer.style.alignItems = 'center';
+  
+  // Create the image element
+  const img = document.createElement('img');
+  img.src = imageSrc;
+  img.style.maxWidth = '100%';
+  img.style.maxHeight = imageDescription ? 'calc(90vh - 100px)' : '90vh'; // Leave room for description
+  img.style.objectFit = 'contain';
+  img.style.border = '2px solid #444';
+  img.style.borderRadius = '4px';
+  
+  contentContainer.appendChild(img);
+  
+  // Add description panel if description is available
+  if (imageDescription) {
+    const descriptionPanel = document.createElement('div');
+    descriptionPanel.style.backgroundColor = 'rgba(40, 44, 52, 0.95)';
+    descriptionPanel.style.color = '#fff';
+    descriptionPanel.style.padding = '12px 16px';
+    descriptionPanel.style.borderRadius = '4px';
+    descriptionPanel.style.marginTop = '10px';
+    descriptionPanel.style.maxWidth = '800px';
+    descriptionPanel.style.width = '100%';
+    descriptionPanel.style.maxHeight = '200px';
+    descriptionPanel.style.overflowY = 'auto';
+    descriptionPanel.style.boxSizing = 'border-box';
+    descriptionPanel.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+    descriptionPanel.style.fontSize = '14px';
+    descriptionPanel.style.lineHeight = '1.5';
     
-    // Clear previous image if any
-    modalImageContent.src = '';
-    modalImageContent.style.display = 'none';
+    // Add heading
+    const descriptionTitle = document.createElement('h3');
+    descriptionTitle.textContent = 'Image Description';
+    descriptionTitle.style.margin = '0 0 8px 0';
+    descriptionTitle.style.fontSize = '16px';
+    descriptionTitle.style.color = '#aab8c5';
+    descriptionPanel.appendChild(descriptionTitle);
     
-    // Show loading indicator
-    let loader = imageViewerModal.querySelector('.modal-loader');
-    if (!loader) {
-      loader = document.createElement('div');
-      loader.className = 'modal-loader';
-      loader.innerHTML = 'Loading...';
-      loader.style.color = 'white';
-      loader.style.padding = '20px';
-      loader.style.textAlign = 'center';
-      imageViewerModal.insertBefore(loader, modalImageContent);
-    } else {
-      loader.style.display = 'block';
-    }
+    // Add description text, handling possible line breaks
+    const descText = document.createElement('div');
+    descText.innerHTML = imageDescription.replace(/\n/g, '<br>');
+    descriptionPanel.appendChild(descText);
     
-    // Set up image load and error handlers
-    modalImageContent.onload = function() {
-      if (loader) loader.style.display = 'none';
-      modalImageContent.style.display = 'block';
-    };
-    
-    modalImageContent.onerror = function() {
-      if (loader) {
-        loader.innerHTML = 'Failed to load image.<br>The image may not exist or cannot be accessed.';
-        loader.style.color = '#ff6b6b';
-      }
-      console.error('Failed to load image:', imageSrc);
-    };
-    
-    // Set image source and link
-    modalImageContent.src = imageSrc;
-    modalImageLink.href = imageSrc;
-    modalImageLink.textContent = 'Open image in new tab';
+    contentContainer.appendChild(descriptionPanel);
   }
-};
-
-function closeImageViewerModal() {
-  if (imageViewerModal) {
-    imageViewerModal.style.display = 'none';
-    modalImageContent.src = ''; // Clear src to stop loading/free memory
-    modalImageLink.href = '#';
-    document.body.classList.remove('image-modal-open');
-  }
-}
-
-if (closeImageModalBtn) {
-  closeImageModalBtn.addEventListener('click', closeImageViewerModal);
-}
-
-if (imageViewerModal) {
-  imageViewerModal.addEventListener('click', (event) => {
-    // Close if clicked on the backdrop itself, not on the image or link
-    if (event.target === imageViewerModal) {
+  
+  // Add close button
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.position = 'absolute';
+  closeBtn.style.top = '10px';
+  closeBtn.style.right = '10px';
+  closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  closeBtn.style.color = 'white';
+  closeBtn.style.border = 'none';
+  closeBtn.style.borderRadius = '50%';
+  closeBtn.style.width = '30px';
+  closeBtn.style.height = '30px';
+  closeBtn.style.fontSize = '16px';
+  closeBtn.style.cursor = 'pointer';
+  closeBtn.style.display = 'flex';
+  closeBtn.style.alignItems = 'center';
+  closeBtn.style.justifyContent = 'center';
+  closeBtn.onclick = closeImageViewerModal;
+  
+  modal.appendChild(contentContainer);
+  modal.appendChild(closeBtn);
+  
+  // Add click outside to close
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) {
       closeImageViewerModal();
+    }
+  });
+  
+  document.body.appendChild(modal);
+  
+  // Add keyboard listener for Escape key
+  document.addEventListener('keydown', function escapeHandler(e) {
+    if (e.key === 'Escape') {
+      closeImageViewerModal();
+      document.removeEventListener('keydown', escapeHandler);
     }
   });
 }
 
-document.addEventListener('keydown', (e) => {
-    if (document.body.classList.contains('image-modal-open')) {
-        if (e.key === 'Escape') {
-            closeImageViewerModal();
-        }
-    }
-});
-// --- End Image Viewer Modal Logic ---
+function closeImageViewerModal() {
+  const modal = document.getElementById('imageViewerModal');
+  if (modal) {
+    document.body.removeChild(modal);
+  }
+}
 
 // Navbar: process all messages and check projects toggle
 const processAllBtnNavbar = document.getElementById('processAllBtnNavbar');
+const processImagesBtn = document.getElementById('processImagesBtn');
 const checkProjectsToggleNavbar = document.getElementById('checkProjectsToggleNavbar');
 
 if (processAllBtnNavbar) {
@@ -482,11 +523,34 @@ if (processAllBtnNavbar) {
       processAllBtnNavbar.disabled = true;
       processAllBtnNavbar.textContent = 'Processing...';
       window.pywebview.api.process_all_messages().then(() => {
-        processAllBtnNavbar.textContent = 'Process All Messages';
+        processAllBtnNavbar.textContent = 'Process Messages';
         processAllBtnNavbar.disabled = false;
       }).catch(() => {
-        processAllBtnNavbar.textContent = 'Process All Messages';
+        processAllBtnNavbar.textContent = 'Process Messages';
         processAllBtnNavbar.disabled = false;
+      });
+    }
+  };
+}
+
+if (processImagesBtn) {
+  processImagesBtn.onclick = () => {
+    if (window.pywebview?.api?.process_unprocessed_images) {
+      processImagesBtn.disabled = true;
+      processImagesBtn.textContent = 'Processing...';
+      window.pywebview.api.process_unprocessed_images().then(result => {
+        processImagesBtn.textContent = 'Process Images';
+        processImagesBtn.disabled = false;
+        // Show a notification with the result
+        if (result.success) {
+          showNotification(`Processed ${result.processed} images`);
+        } else {
+          showNotification(`Error: ${result.error || 'Failed to process images'}`);
+        }
+      }).catch(err => {
+        processImagesBtn.textContent = 'Process Images';
+        processImagesBtn.disabled = false;
+        showNotification(`Error: ${err.message || 'Failed to process images'}`);
       });
     }
   };
