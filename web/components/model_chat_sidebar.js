@@ -4,11 +4,108 @@
 export function renderModelChatSidebar(container, context = {}) {
     container.innerHTML = `
         <style scoped>
-            .model-chat-sidebar { width: 350px; min-width: 350px; background: #262a34; border-left: 1px solid #363b47; display: flex; flex-direction: column; height: 100%; position: absolute; top: 0; right: 0; bottom: 0; }
-            .model-chat-sidebar-inner { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 1em; box-sizing: border-box; }
-            .model-chat-sidebar h3 { margin: 0 0 0.7em 0; color: #f7f7fa; font-size: 1.25em; }
-            .model-chat-mode-row { margin-bottom: 0.7em; display: flex; align-items: center; gap: 0.7em; }
-            #modelChatMessages { flex: 1; overflow-y: auto; background: #23272e; border-radius: 6px; padding: 0.7em; font-size: 0.97em; color: #e3e3e3; min-height: 0; }
+            .model-chat-sidebar { 
+                width: 350px; 
+                min-width: 350px; 
+                background: #262a34; 
+                border-left: 1px solid #363b47; 
+                display: flex; 
+                flex-direction: column; 
+                height: 100%; 
+                position: absolute; 
+                top: 0; 
+                right: 0; 
+                bottom: 0; 
+                z-index: 10;
+            }
+            .model-chat-sidebar-inner {
+                display: flex;
+                flex-direction: column;
+                flex: 1; 
+                min-height: 0;
+                padding: 1em;
+                box-sizing: border-box;
+                overflow: hidden; /* Prevent content from spilling out */
+            }
+            .model-chat-sidebar h3 {
+                margin: 0;
+                margin-top: 80px; /* Increased from 50px to 80px to move content even lower */
+                margin-bottom: 15px;
+                color: #f7f7fa;
+                font-size: 1.25em;
+                flex-shrink: 0;
+                position: relative;
+                z-index: 1;
+            }
+            
+            /* Options grid styles */
+            .model-chat-options-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.7em;
+                margin-bottom: 0.9em;
+                flex-shrink: 0;
+                position: relative; /* Ensure proper stacking context */
+                z-index: 2; /* Make sure the options are above other elements */
+                width: 100%; /* Take full width of parent */
+                background: rgba(30, 33, 40, 0.5); /* Subtle background */
+                padding: 10px;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            .model-chat-mode-row, .model-chat-history-toggle {
+                display: flex;
+                align-items: center;
+                gap: 0.5em;
+            }
+            .model-chat-mode-row label, .model-chat-history-toggle label {
+                color: #c9c9d9;
+                font-size: 0.95em;
+                cursor: pointer;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+            #modelModeSelect {
+                background: rgba(20, 22, 28, 0.6);
+                color: #e0e0e0;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 6px;
+                padding: 0.5em;
+                font-family: inherit;
+                font-size: 0.95em;
+                width: 100%;
+                flex-grow: 1;
+            }
+            #useHistoryToggle {
+                accent-color: #007FFF; 
+                width: 16px;
+                height: 16px;
+                cursor: pointer;
+                vertical-align: middle;
+                margin-right: 4px;
+            }
+
+            #modelChatMessages {
+                flex: 1; 
+                overflow-y: auto; 
+                background: #23272e; 
+                border-radius: 6px;  
+                padding: 0.7em;      
+                font-size: 0.97em;   
+                color: #e3e3e3;      
+                min-height: 0; /* Crucial for flex to allow shrinking and scrolling */
+                margin-top: 0; /* Ensure no extra space */
+            }
+            .model-chat-input-row {
+                display: flex;
+                flex-wrap: nowrap;
+                gap: 8px;
+                align-items: center;
+                margin-top: 0.7em; 
+                flex-shrink: 0; /* Prevent input row from shrinking */
+            }
+            
+            /* Other existing styles */
             .message-item { margin-bottom: 0.6em; padding: 0.5em 1em 0.5em 0.7em; border-radius: 5px; word-wrap: break-word; max-width: 100%; box-sizing: border-box; }
             .user-message { background: #303540; }
             .model-message { background: #282c34; }
@@ -17,10 +114,8 @@ export function renderModelChatSidebar(container, context = {}) {
             .model-role { color: #ffb347; }
             .message-explanation { color: #b5b5c7; margin-top: 0.3em; font-style: italic; }
             .view-original-link { color: #8af; cursor: pointer; text-decoration: underline; margin-left: 0.5em; font-size: 0.9em; display: block; margin-top: 4px; }
-            .model-chat-input-row { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; margin-top: 0.7em; }
             .model-chat-input-row input { flex: 1; min-width: 150px; padding: 0.5em 0.8em; border-radius: 4px; border: 1px solid #44495a; background: #23272e; color: #fff; }
             .model-chat-input-row button { background: #3578e5; color: #fff; border: none; border-radius: 4px; padding: 0.5em 1.2em; font-weight: bold; cursor: pointer; white-space: nowrap; }
-            .model-chat-input-row .toggle { display: flex; align-items: center; gap: 0.3em; font-size: 0.97em; color: #c9c9d9; }
             .sidebar-project-name { font-size: 0.85em; color: #b0b0c0; font-weight: normal; margin-left: 0.3em; }
             .selected-message-content-item { padding: 0.4em; border-radius: 4px; }
             .selected-message-item { border-radius: 5px; word-wrap: break-word; max-width: 100%; box-sizing: border-box; cursor: pointer; }
@@ -30,18 +125,25 @@ export function renderModelChatSidebar(container, context = {}) {
         <div class="model-chat-sidebar">
             <div class="model-chat-sidebar-inner">
                 <h3>Model Chat${context.project ? ` <span class=\"sidebar-project-name\">– ${context.project.name}</span>` : ''}</h3>
-                <div class="model-chat-mode-row">
-                    <label for="modelModeSelect">Mode:</label>
-                    <select id="modelModeSelect">
-                        <option value="select">Select Messages</option>
-                        <option value="generic">Generic Prompt</option>
-                    </select>
+                
+                <div class="model-chat-options-grid"> 
+                    <div class="model-chat-mode-row">
+                        <label for="modelModeSelect">Mode:</label>
+                        <select id="modelModeSelect">
+                            <option value="select">Select Messages</option>
+                            <option value="generic">Generic Prompt</option>
+                        </select>
+                    </div>
+                    <div class="model-chat-history-toggle">
+                        <input type="checkbox" id="useHistoryToggle">
+                        <label for="useHistoryToggle">Use History</label>
+                    </div>
                 </div>
+
                 <div id="modelChatMessages"></div>
                 <div class="model-chat-input-row">
                     <input id="modelChatInput" type="text" placeholder="Ask the model...">
                     <button id="modelChatSendBtn">Send</button>
-                    <span class="toggle"><input type="checkbox" id="useHistoryToggle"><label for="useHistoryToggle">Use History</label></span>
                 </div>
             </div>
         </div>
@@ -50,8 +152,8 @@ export function renderModelChatSidebar(container, context = {}) {
     const messagesDiv = container.querySelector('#modelChatMessages');
     const input = container.querySelector('#modelChatInput');
     const sendBtn = container.querySelector('#modelChatSendBtn');
-    const useHistoryToggle = container.querySelector('#useHistoryToggle');
     const modeSelect = container.querySelector('#modelModeSelect');
+    const useHistoryToggle = container.querySelector('#useHistoryToggle');
 
     let chatHistory = []; // Keep track of raw history for generic chat
 

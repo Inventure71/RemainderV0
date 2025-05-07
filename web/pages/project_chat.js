@@ -32,7 +32,7 @@ export function renderProjectChat(container, api, project) {
                 <style scoped>
                     .chat-wrapper{display:flex;flex-direction:column;flex:1;min-height:0;}
                     .project-chat-header{position: relative; z-index: 2; padding:16px 12px 10px 12px;border-radius:10px 10px 0 0;color:${textColor};display:flex;align-items:flex-start;}
-                    .scrollable-list{flex:1;min-height:0;overflow-y:auto;margin:0;padding:0;list-style:none;background:#23272e;}
+                    .scrollable-list{flex:1;min-height:0;overflow-y:auto;margin:0;padding:0 10px 80px 10px;list-style:none;background:#23272e;}
                     .form-container{display:flex;gap:8px;align-items:stretch;margin-top:8px;padding:8px;background:#2a3142;border-top:1px solid #363b47;}
                     .input-area{display:flex;flex-direction:column;flex:1;gap:8px;}
                     .form-container textarea{flex:1;resize:none;font:inherit;padding:6px 8px;background:#23272e;color:#fff;border:1px solid #444;border-radius:4px;}

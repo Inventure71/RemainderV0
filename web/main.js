@@ -283,18 +283,35 @@ window.scrollToMessage = (msgId) => {
 // Show/hide model chat sidebar overlay
 window.toggleModelChatSidebar = (show, context = {}) => {
   const overlay = document.getElementById('modelChatSidebarOverlay');
-  const body = document.body; // Get the body element
+  const body = document.body;
+  
   if (!overlay) return;
+  
   if (show) {
-    overlay.style.display = 'block';
-    body.classList.add('model-sidebar-visible'); // Add class to body
-    import('./components/model_chat_sidebar.js').then(({ renderModelChatSidebar }) => {
-      renderModelChatSidebar(overlay, context);
+    // Clear any previous content first
+    overlay.innerHTML = '';
+    
+    // Make visible to avoid layout calculation issues and apply transition
+    requestAnimationFrame(() => {
+      overlay.style.display = 'block';
+      
+      // Short delay to ensure display: block has taken effect
+      setTimeout(() => {
+        body.classList.add('model-sidebar-visible');
+        
+        // Import and render the sidebar content
+        import('./components/model_chat_sidebar.js').then(({ renderModelChatSidebar }) => {
+          renderModelChatSidebar(overlay, context);
+        });
+      }, 50);
     });
   } else {
     overlay.style.display = 'none';
-    body.classList.remove('model-sidebar-visible'); // Remove class from body
-    overlay.innerHTML = '';
+    body.classList.remove('model-sidebar-visible');
+    // Clear content after hiding to avoid potential memory leaks
+    setTimeout(() => {
+      overlay.innerHTML = '';
+    }, 100);
   }
 };
 

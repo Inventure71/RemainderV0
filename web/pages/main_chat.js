@@ -9,7 +9,7 @@ export function renderMainChat(container, api) {
             <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;background:#23272e;">
                 <style scoped>
                     .chat-container{display:flex;flex-direction:column;flex:1;min-height:0;}
-                    .scrollable-list{flex:1;min-height:0;overflow-y:auto;margin:0;padding:0;list-style:none;background:#23272e;}
+                    .scrollable-list{flex:1;min-height:0;overflow-y:auto;margin:0;padding:0 10px 80px 10px;list-style:none;background:#23272e;}
                     .chat-options{margin-bottom: 8px; padding-left: 5px; color: #ccc; font-size: 0.9em;}
                     .form-container{display:flex;gap:8px;align-items:stretch;margin-top:8px;} /* Align items stretch */
                     .input-area{display:flex;flex-direction:column;flex:1;gap:8px;}
