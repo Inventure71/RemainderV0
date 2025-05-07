@@ -608,6 +608,27 @@ if (fetchTelegramBtn) {
       fetchTelegramBtn.textContent = originalText;
       fetchTelegramBtn.style.pointerEvents = 'auto'; // Re-enable clicks
       showNotification(r.status === 'ok' ? 'Telegram messages fetched' : 'Fetch failed');
+      
+      // Refresh the current view to show new messages
+      if (r.status === 'ok') {
+        // If in main chat, reload messages directly
+        if (document.getElementById('messagesList')) {
+          // Check if we have a loadMessages function in the current context
+          if (typeof loadMessages === 'function') {
+            loadMessages(api);
+          } else if (window.loadMessages) {
+            window.loadMessages(api);
+          }
+        } 
+        // If in project chat, reload that project's messages
+        else if (document.getElementById('projectMessages') && selectedProject) {
+          if (typeof loadProjectMessages === 'function') {
+            loadProjectMessages(api, selectedProject);
+          } else if (window.loadProjectMessages) {
+            window.loadProjectMessages(api, selectedProject);
+          }
+        }
+      }
     }).catch(() => {
       fetchTelegramBtn.textContent = originalText;
       fetchTelegramBtn.style.pointerEvents = 'auto'; // Re-enable clicks

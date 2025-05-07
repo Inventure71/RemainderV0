@@ -16,7 +16,7 @@ export function renderModelChatSidebar(container, context = {}) {
                 top: 0; 
                 right: 0; 
                 bottom: 0; 
-                z-index: 10;
+                z-index: 50; /* Increased from 10 to 50 */
             }
             .model-chat-sidebar-inner {
                 display: flex;
@@ -29,7 +29,7 @@ export function renderModelChatSidebar(container, context = {}) {
             }
             .model-chat-sidebar h3 {
                 margin: 0;
-                margin-top: 80px; /* Increased from 50px to 80px to move content even lower */
+                margin-top: 100px; /* Increased from 80px to 100px to give more spacing from top */
                 margin-bottom: 15px;
                 color: #f7f7fa;
                 font-size: 1.25em;
@@ -66,11 +66,11 @@ export function renderModelChatSidebar(container, context = {}) {
                 flex-shrink: 0;
             }
             #modelModeSelect {
-                background: rgba(20, 22, 28, 0.6);
+                background: #23272e; /* Updated background */
                 color: #e0e0e0;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                border-radius: 6px;
-                padding: 0.5em;
+                border: 1px solid #44495a; /* Updated border */
+                border-radius: 4px; /* Updated border-radius */
+                padding: 0.5em 0.8em; /* Updated padding */
                 font-family: inherit;
                 font-size: 0.95em;
                 width: 100%;

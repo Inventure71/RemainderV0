@@ -364,4 +364,7 @@ function loadMessages(api) {
     });
 }
 
+// Make loadMessages available globally
+window.loadMessages = loadMessages;
+
 export const __testonly__ = { sendMessage, loadMessages };

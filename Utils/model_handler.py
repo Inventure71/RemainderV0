@@ -9,7 +9,7 @@ from Utils.prompts import sys_prompt_answer_question, sys_prompt_create_projects
 
 
 class ModelClient:
-    def __init__(self, mode="gemini", model="gemini-2.5-flash-preview-04-17", model_context_window=100000):
+    def __init__(self, mode="gemini", model="gemini-2.5-flash-preview-04-17", model_context_window=500000):
         self.mode = mode
         self.model = model
         self.model_context_window = model_context_window

@@ -642,4 +642,7 @@ function loadProjectMessages(api, project) {
     });
 }
 
+// Make loadProjectMessages available globally
+window.loadProjectMessages = loadProjectMessages;
+
 export const __testonly__ = { sendProjectMessage, loadProjectMessages, loadRemindersList };

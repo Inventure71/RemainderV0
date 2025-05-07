@@ -359,6 +359,8 @@ class Api:
     def refresh_telegram_messages(self):
         try:
             telegram_utils.retrive_messages(save_to_file=False)
+            # Reset the message cache to force refresh
+            self._message_cache = {}
             return {'success': True}
         except Exception as e:
             return {'success': False, 'error': str(e)}

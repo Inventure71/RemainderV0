@@ -31,7 +31,7 @@ export class Message {
         }
         .popout-menu {
           position: absolute; /* Needed for z-index to properly stack */
-          z-index: 100; /* Make sure menu is on top */
+          z-index: 9999; /* Extremely high z-index to ensure it's always on top */
           /* other styles like background, border, etc., should be in existing CSS */
         }
         /* Add styles for the meta container */
@@ -199,12 +199,102 @@ export class Message {
 
   attachMenuLogic(li) {
     const menuContainer = li.querySelector('.menu-container');
+    const menuBtn = li.querySelector('.menu-btn');
+    const popoutMenu = li.querySelector('.popout-menu');
     const editItem = li.querySelector('.edit-item');
     const deleteItem = li.querySelector('.delete-item');
     const changeItem = li.querySelector('.change-item');
     const projectSublist = li.querySelector('.project-sublist');
     const doneActionItem = li.querySelector('.done-action-item');
     let projectsLoaded = false;
+
+    // --- Auto-close logic ---
+    const AUTO_CLOSE_MS = 3000; // 3 seconds
+    let closeTimer = null;
+    function startCloseTimer() {
+      clearCloseTimer();
+      closeTimer = setTimeout(() => {
+        closeMenu();
+      }, AUTO_CLOSE_MS);
+    }
+    function clearCloseTimer() {
+      if (closeTimer) {
+        clearTimeout(closeTimer);
+        closeTimer = null;
+      }
+    }
+    function closeMenu() {
+      menuContainer.classList.remove('open');
+      li.classList.remove('submenu-open');
+      li.style.zIndex = '';
+      clearCloseTimer();
+      if (popoutMenu) {
+        popoutMenu.style.display = '';
+        popoutMenu.style.opacity = '';
+        popoutMenu.style.pointerEvents = '';
+        popoutMenu.style.zIndex = '';
+      }
+    }
+
+    // Store references to event listeners so we can remove them later
+    const documentClickHandler = (e) => {
+      if (!menuContainer.contains(e.target) && !menuBtn.contains(e.target)) { 
+        closeMenu();
+      }
+    };
+    const documentKeyHandler = (e) => {
+      if (e.key === 'Escape') {
+        closeMenu();
+      }
+    };
+
+    // Add event listener for menu button click to toggle submenu-open class on parent list-item
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Close all other open submenus
+      document.querySelectorAll('.list-item.submenu-open').forEach(item => {
+        if (item !== li) {
+          item.classList.remove('submenu-open');
+          const otherContainer = item.querySelector('.menu-container');
+          if (otherContainer) otherContainer.classList.remove('open');
+          item.style.zIndex = '';
+          // Also clear any timers on other menus
+          if (item._closeTimer) {
+            clearTimeout(item._closeTimer);
+            item._closeTimer = null;
+          }
+        }
+      });
+      // Toggle the submenu-open class on this list-item
+      const isCurrentlyOpen = li.classList.contains('submenu-open');
+      if (isCurrentlyOpen) {
+        closeMenu();
+        document.removeEventListener('click', documentClickHandler);
+        document.removeEventListener('keydown', documentKeyHandler);
+      } else {
+        li.classList.add('submenu-open');
+        menuContainer.classList.add('open');
+        li.style.zIndex = '1000';
+        if (popoutMenu) {
+          popoutMenu.style.display = 'block';
+          popoutMenu.style.opacity = '1';
+          popoutMenu.style.pointerEvents = 'auto';
+          popoutMenu.style.zIndex = '1001';
+        }
+        document.addEventListener('click', documentClickHandler);
+        document.addEventListener('keydown', documentKeyHandler);
+        startCloseTimer();
+      }
+    });
+    // Pause/Reset timer on interaction
+    if (popoutMenu) {
+      popoutMenu.addEventListener('mouseenter', clearCloseTimer);
+      popoutMenu.addEventListener('mouseleave', startCloseTimer);
+      popoutMenu.addEventListener('mousedown', clearCloseTimer);
+      popoutMenu.addEventListener('mouseup', startCloseTimer);
+    }
+    menuBtn.addEventListener('mouseenter', clearCloseTimer);
+    menuBtn.addEventListener('mouseleave', startCloseTimer);
 
     // Try to get the latest API reference in case it became available
     const currentApi = this.api || window.pywebview?.api;
@@ -214,11 +304,13 @@ export class Message {
         e.stopPropagation(); 
         window.actions.editMessageWithProject(this.id, this.project||''); 
         menuContainer.classList.remove('open'); // Close menu
+        li.classList.remove('submenu-open'); // Remove submenu-open class
     });
     deleteItem.addEventListener('click', e => { 
         e.stopPropagation(); 
         window.actions.deleteMessage(this.id); 
         menuContainer.classList.remove('open'); // Close menu
+        li.classList.remove('submenu-open'); // Remove submenu-open class
     });
 
     // New Done Action Item Handler
@@ -264,6 +356,7 @@ export class Message {
             });
         }
         menuContainer.classList.remove('open'); // Close menu
+        li.classList.remove('submenu-open'); // Remove submenu-open class
       });
     }
 
@@ -290,6 +383,7 @@ export class Message {
                   projBubble.style.color = getContrast(proj.color);
                 }
                 menuContainer.classList.remove('open'); // Close menu after selecting a project
+                li.classList.remove('submenu-open'); // Remove submenu-open class
               });
               projectSublist.appendChild(item);
             });
@@ -302,9 +396,6 @@ export class Message {
         }
       }
     });
-
-    // Close menu when clicking outside
-    document.addEventListener('click', e => { if (!menuContainer.contains(e.target)) { menuContainer.classList.remove('open'); } });
 
     // Prevent context-menu override
     li.addEventListener('contextmenu', e => {

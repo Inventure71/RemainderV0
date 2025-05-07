@@ -62,6 +62,7 @@ body.model-sidebar-visible .content {
   flex: 1; /* Allow list to grow */
   min-height: 0; /* Needed for flex child overflow */
   overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal scroll */
   margin: 0;
   padding: 0 10px 80px 10px; /* Add 80px bottom padding to prevent messages from going under the form container */
   list-style: none;
@@ -69,70 +70,70 @@ body.model-sidebar-visible .content {
   box-sizing: border-box;
   width: 100%; /* Ensure it takes full width of parent */
   max-width: 100%; /* Prevent overflow */
+  position: relative; /* Create stacking context */
+  isolation: isolate; /* Ensures child stacking contexts are isolated from each other */
 }
 .list-item {
-  /* background: rgba(45, 48, 58, 0.5); */ /* Original background */
-  background: linear-gradient(145deg, rgba(60, 65, 80, 0.6), rgba(35, 40, 50, 0.7)); /* New gradient background */
-  /* backdrop-filter: blur(10px) saturate(120%); */ /* Temporarily removed for clip-path compatibility testing later */
-  /* -webkit-backdrop-filter: blur(10px) saturate(120%); */ /* Temporarily removed */
-  border: 1.5px solid rgba(255, 255, 255, 0.15); /* Adjusted border */
-  border-radius: 8px; /* Sharper, more crystal-like radius */
-  box-shadow: 0 6px 20px rgba(0,0,0,0.25), inset 0 0 12px rgba(255,255,255,0.07); /* Adjusted shadow with inner glow */
-  margin-bottom: 1.5em; /* Slightly increased margin for potentially irregular shapes */
-  padding: 1em 1.2em; /* Adjusted padding */
+  background: linear-gradient(145deg, rgba(60, 65, 80, 0.6), rgba(35, 40, 50, 0.7));
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25), inset 0 0 12px rgba(255,255,255,0.07);
+  margin-bottom: 1.5em;
+  padding: 1em 1.2em;
   position: relative;
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, background 0.2s ease-out, border-color 0.2s ease-out;
-  color: #e0e0e0; /* Ensure text is readable */
-  overflow: hidden; /* Important for the pseudo-element shimmer */
-  max-width: calc(100% - 20px); /* Prevent it from overflowing the container, leave some space on sides */
-  width: 100%; /* Take full available width */
-  box-sizing: border-box; /* Include padding in width calculations */
+  color: #e0e0e0;
+  overflow: visible; /* Change from hidden to visible to allow menus to extend out */
+  max-width: calc(100% - 20px);
+  width: 100%;
+  box-sizing: border-box;
   margin-left: auto;
   margin-right: auto;
+  z-index: 1;
 }
 
-.list-item::after { /* Shimmer pseudo-element */
+.list-item::after {
   content: '';
   position: absolute;
   top: 0;
-  left: -150%; /* Start off-screen to the left */
-  width: 75%;  /* Width of the shimmer highlight */
+  left: -150%;
+  width: 75%;
   height: 100%;
   background: linear-gradient(
     to right,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.15) 50%, /* Subtle shimmer opacity */
+    rgba(255, 255, 255, 0.15) 50%,
     rgba(255, 255, 255, 0) 100%
   );
-  transform: skewX(-25deg); /* Angle the shimmer */
-  animation: shimmer 5s infinite linear; /* Adjust duration (e.g., 4s-7s) and timing */
-  z-index: 1; /* Above item's background, below content */
-  pointer-events: none; /* So it doesn't interfere with clicks */
+  transform: skewX(-25deg);
+  animation: shimmer 5s infinite linear;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
 
-/* Ensure content within list-item is above the shimmer */
-.list-item > * { /* Target direct children */
+.list-item > * {
   position: relative;
-  z-index: 2;
+  z-index: 1;
 }
 
 @keyframes shimmer {
   0% {
     left: -150%;
   }
-  50% { /* Optional mid-point to control speed variance, or remove for linear speed */
+  50% {
     left: 150%;
   }
   100% {
-    left: 150%; /* Ensure it completes off-screen if 50% is less than 100% of travel */
+    left: 150%;
   }
 }
 
 .list-item:hover {
-  background: linear-gradient(145deg, rgba(70, 75, 90, 0.7), rgba(45, 50, 60, 0.8)); /* Brighter hover background */
-  border-color: #007FFF; /* Accent color border */
-  box-shadow: 0 8px 28px rgba(0, 127, 255, 0.35), inset 0 0 18px rgba(0, 127, 255, 0.15); /* Accent shadow and inner glow */
-  transform: scale(1.02); /* Reduced from 1.03 to prevent overflow issues when hovering */
+  background: linear-gradient(145deg, rgba(70, 75, 90, 0.7), rgba(45, 50, 60, 0.8));
+  border-color: #007FFF;
+  box-shadow: 0 8px 28px rgba(0, 127, 255, 0.35), inset 0 0 18px rgba(0, 127, 255, 0.15);
+  transform: scale(1.02);
 }
 .list-item:last-child {
   border-bottom: none;
@@ -164,16 +165,16 @@ body.model-sidebar-visible .content {
   gap: 0.4em;
 }
 .tag {
-  background: rgba(255, 255, 255, 0.05); /* Base translucent layer */
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff; /* Default text color, specific tags can override */
-  border-radius: 7px; /* Adjusted */
-  padding: 0.3em 0.8em; /* Adjusted */
-  font-size: 0.9em;   /* Adjusted */
+  color: #fff;
+  border-radius: 7px;
+  padding: 0.3em 0.8em;
+  font-size: 0.9em;
   letter-spacing: 0.03em;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  filter: saturate(130%); /* Make underlying specific colors pop */
-  display: inline-block; /* Ensure filter applies correctly */
+  filter: saturate(130%);
+  display: inline-block;
   transition: transform 0.15s ease-out;
 }
 
@@ -181,10 +182,10 @@ body.model-sidebar-visible .content {
   transform: scale(1.05);
 }
 
-.importance-high { background-color: rgba(200, 50, 50, 0.7) !important; } /* Adjusted with alpha, !important to override base .tag background */
-.importance-medium { background-color: rgba(250, 173, 20, 0.7) !important; color: #222 !important; } /* Adjusted with alpha */
-.importance-low { background-color: rgba(64, 169, 255, 0.7) !important; }  /* Adjusted with alpha */
-.remind-tag { background-color: rgba(82, 196, 26, 0.7) !important; color: #222 !important; } /* Adjusted with alpha */
+.importance-high { background-color: rgba(200, 50, 50, 0.7) !important; }
+.importance-medium { background-color: rgba(250, 173, 20, 0.7) !important; color: #222 !important; }
+.importance-low { background-color: rgba(64, 169, 255, 0.7) !important; }
+.remind-tag { background-color: rgba(82, 196, 26, 0.7) !important; color: #222 !important; }
 .message-actions {
   position: absolute;
   top: 8px;
@@ -203,11 +204,11 @@ body.model-sidebar-visible .content {
 .floating-menu {
   position: absolute;
   top: 12px;
-  right: 12px; /* Adjusted from -8px to 12px to keep it inside the container */
+  right: 12px;
   display: none;
   flex-direction: column;
   align-items: flex-end;
-  z-index: 30; /* Increased from 20 to ensure it stays on top */
+  z-index: 1001;
   background: transparent;
   box-shadow: none;
 }
@@ -216,21 +217,21 @@ body.model-sidebar-visible .content {
 .popout-submenu {
   display: block;
   position: absolute;
-  right: 110%; /* Changed from 100% to 110% to move it further left */
-  top: -5px; /* Slight adjustment to better align with the button */
+  right: 110%;
+  top: -5px;
   min-width: 180px;
-  background: rgba(50, 55, 70, 0.75);
+  background: rgba(50, 55, 70, 0.9);
   backdrop-filter: blur(12px) saturate(150%);
   -webkit-backdrop-filter: blur(12px) saturate(150%);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px; /* Was 10px */
+  border-radius: 8px;
   box-shadow: 0 6px 25px rgba(0,0,0,0.3), 0 1px 6px rgba(0,0,0,0.15);
   transform: translateX(24px) scale(0.92);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.18s, transform 0.18s;
   padding: 0.7em 0.2em 0.7em 0.5em;
-  z-index: 31; /* Make sure it's above the floating menu */
+  z-index: 1002;
 }
 .submenu-arrow {
   position: absolute;
@@ -256,7 +257,7 @@ body.model-sidebar-visible .content {
   transition: background 0.14s, color 0.14s;
 }
 .popout-submenu li:hover {
-  background: #007FFF; /* Accent blue */
+  background: #007FFF;
   color: #fff;
 }
 .floating-menu button {
@@ -277,9 +278,9 @@ body.model-sidebar-visible .content {
 .form-container {
   position: fixed;
   left: 0;
-  /* Removed right: 0 */
-  width: 100%; /* Set width explicitly */
+  width: 100%;
   bottom: 0;
+  background: rgba(35, 39, 46, 0.9);
   background: rgba(35, 39, 46, 0.9); /* Semi-transparent background */
   backdrop-filter: blur(8px); /* Add blur effect for better separation */
   -webkit-backdrop-filter: blur(8px);
@@ -444,7 +445,7 @@ input[type="color"] {
   position: absolute;
   top: 12px;
   right: 16px;
-  z-index: 30;
+  z-index: 900; /* Higher base z-index */
 }
 .menu-btn {
   background: none;
@@ -473,17 +474,31 @@ input[type="color"] {
   min-width: 160px;
   background: #23272e;
   border-radius: 8px;
-  box-shadow: 0 4px 16px #0005;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   padding: 0.3em 0;
   opacity: 0;
   transform: translateY(0);
   transition: opacity 0.15s, transform 0.15s;
   pointer-events: none;
+  z-index: 9000; /* Very high z-index to appear above other content */
 }
+
+/* Update menu visibility triggers - separate hover and click handling */
 .menu-container:hover .popout-menu {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
+  display: block;
+  z-index: 9000;
+}
+
+/* Separate rule for clicked state (open class) */
+.menu-container.open .popout-menu {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  display: block;
+  z-index: 9000;
 }
 .menu-list,
 .project-sublist {
@@ -513,16 +528,18 @@ input[type="color"] {
   min-width: 140px;
   background: #1e2127;
   border-radius: 6px;
-  box-shadow: 0 4px 12px #0004;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
   opacity: 0;
   transform: translateX(6px);
   transition: opacity 0.15s, transform 0.15s;
   pointer-events: none;
+  z-index: 9002; /* Even higher than the menu */
 }
 .change-item:hover .project-sublist {
   opacity: 1;
   transform: translateX(0);
   pointer-events: auto;
+  display: block;
 }
 
 /* Ensure pages using scrollable-list fill the content area */
@@ -882,3 +899,33 @@ button[disabled] {
 }
 
 /* End of Base Button Style */
+
+.list-item.submenu-open {
+  box-shadow: 0 6px 20px rgba(0, 127, 255, 0.25), inset 0 0 12px rgba(0, 127, 255, 0.07);
+  border-color: #007FFF;
+  z-index: 9000 !important; /* Very high z-index to appear above other messages */
+  position: relative; /* Ensure z-index works properly */
+  transform: translateZ(0); /* Force a new stacking context */
+}
+
+.list-item.submenu-open .popout-menu {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  display: block !important; /* Force display for menu */
+  z-index: 9001; /* One higher than the parent */
+}
+
+/* Update this to work with the submenu-open class */
+.menu-container.open .menu-btn {
+  color: #f7f7fa;
+}
+
+.message-body {
+  max-width: 100%;
+}
+
+.message-image-previews {
+  max-width: 100%;
+  box-sizing: border-box;
+}
