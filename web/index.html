@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, initial-scale=1.0">
+    <title>Remainder</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #23272e; color: #fff; margin: 0; }
+        .navbar { background: #2c2c2c; padding: 0.5em 1em; display: flex; align-items: center; }
+        .navbar button { margin-right: 1em; background: #3a3f4b; color: #fff; border: none; padding: 0.7em 1.5em; border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .navbar button:hover { background: #4e5a65; }
+        .navbar .right { margin-left: auto; }
+        .content { padding: 2em; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body style="display:flex;flex-direction:column;height:100vh;margin:0;">
+    <div class="navbar">
+        <button id="navMainChat">Main Chat</button>
+        <button id="navProjects">Projects</button>
+        <button id="navProjectChat">Project Chat</button>
+        <div style="display:flex;align-items:center;gap:1em;margin-left:2em;">
+            <button id="processAllBtnNavbar" class="small-btn">Process Messages</button>
+            <button id="processImagesBtn" class="small-btn">Process Images</button>
+            <label style="display:flex;align-items:center;gap:0.4em;color:#fff;font-size:0.97em;">
+                <input type="checkbox" id="checkProjectsToggleNavbar" style="accent-color:#3578e5;"> Check Projects
+            </label>
+            <div class="dropdown">
+                <button id="messageSourcesBtn" class="dropbtn">Message Sources ▾</button>
+                <div class="dropdown-content">
+                    <a href="#" id="fetchTelegramBtn">Fetch Telegram</a>
+                    <a href="#" id="scrapeWhatsappBtn">Scrape WhatsApp</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="app" class="content" style="flex:1;display:flex;flex-direction:column;padding:2em;overflow:hidden;"></div>
+    <div id="modelChatSidebarOverlay"></div>
+
+    <!-- Custom Modal for Input -->
+    <div id="customModalOverlay"></div>
+    <div id="customModal">
+        <h3 id="modalTitle">Modal Title</h3>
+        <label id="modalLabel" for="modalInput">Input Label:</label>
+        <input type="text" id="modalInput">
+        <input type="color" id="modalColorInput" style="display: none; width: 100%; height: 40px; margin-bottom: 15px;">
+        <div class="modal-actions">
+            <button id="modalCancelBtn">Cancel</button>
+            <button id="modalOkBtn">OK</button>
+        </div>
+    </div>
+
+    <!-- Image Viewer Modal -->
+    <div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center; flex-direction: column;">
+      <span id="closeImageModal" style="position:absolute; top:20px; right:35px; color:white; font-size:40px; font-weight:bold; cursor:pointer;">&times;</span>
+      <img id="modalImageContent" src="" alt="Full-size image" style="max-width:90%; max-height:85%; object-fit:contain; margin-bottom: 10px;">
+      <a id="modalImageLink" href="#" target="_blank" style="color: #eee; font-size: 0.9em; text-decoration: none;">Open image in new tab</a>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

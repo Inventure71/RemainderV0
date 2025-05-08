@@ -1,3 +1,8 @@
+# --- This file is deprecated. The UI is now handled by the web frontend. ---
+# All logic for model chat is now in the backend API (main.py) and web UI (HTML/JS).
+
+# You may safely delete or ignore this file.
+
 import re
 import tkinter as tk
 import time

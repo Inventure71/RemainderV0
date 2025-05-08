@@ -1,3 +1,12 @@
+# This file is deprecated. The UI is now handled by the web frontend.
+# All logic for project chat is now in the backend API (main.py) and web UI (HTML/JS).
+
+# You may safely delete or ignore this file.
+
+# The previous Tkinter-based ProjectChatWindow is no longer used.
+
+# You can implement any new Python-to-JS API endpoints in main.py for backend logic.
+
 import tkinter as tk
 from tkinter import simpledialog, colorchooser
 # Remove TopBar import here, it's handled by the parent

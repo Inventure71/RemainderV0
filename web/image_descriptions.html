@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Descriptions</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            background: #23272e; 
+            color: #fff; 
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1 { 
+            color: #f7f7fa;
+            border-bottom: 1px solid #3578e5;
+            padding-bottom: 10px;
+        }
+        .image-container {
+            background: #292f3a;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+        }
+        .image-preview {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .image-preview img {
+            max-width: 150px;
+            max-height: 150px;
+            border-radius: 5px;
+            margin-right: 15px;
+            border: 1px solid #444;
+            object-fit: cover;
+        }
+        .image-info {
+            flex: 1;
+        }
+        .image-id {
+            font-size: 0.9em;
+            color: #aab8c5;
+            margin-bottom: 5px;
+        }
+        .message-context {
+            font-size: 0.95em;
+            margin-bottom: 10px;
+            color: #e0e0e0;
+        }
+        .description {
+            background: #23272e;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .description-title {
+            margin-bottom: 5px;
+            color: #aab8c5;
+            font-weight: bold;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2em;
+            color: #aab8c5;
+        }
+        .error {
+            color: #ff5252;
+            background: rgba(255, 82, 82, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .counter {
+            background: #3578e5;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #3578e5;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Descriptions <span id="counter" class="counter">0</span></h1>
+    <div id="loading" class="loading">Loading image descriptions...</div>
+    <div id="error" class="error" style="display: none;"></div>
+    <div id="imageDescriptions"></div>
+    <a href="/" class="back-link">← Back to main app</a>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Access the pywebview API
+            const getImageDescriptions = async () => {
+                try {
+                    if (!window.pywebview || !window.pywebview.api) {
+                        throw new Error("pywebview API not available");
+                    }
+                    
+                    const result = await window.pywebview.api.get_image_descriptions();
+                    
+                    if (!result || !result.success) {
+                        throw new Error(result?.error || "Failed to get image descriptions");
+                    }
+                    
+                    return result;
+                } catch (error) {
+                    console.error("Error fetching image descriptions:", error);
+                    throw error;
+                }
+            };
+            
+            // Render the image descriptions
+            const renderImageDescriptions = (data) => {
+                const container = document.getElementById('imageDescriptions');
+                const counter = document.getElementById('counter');
+                
+                if (!data.images || !data.images.length) {
+                    container.innerHTML = '<p>No image descriptions found. Try processing some images first.</p>';
+                    counter.textContent = '0';
+                    return;
+                }
+                
+                counter.textContent = data.count;
+                
+                const html = data.images.map((img, index) => `
+                    <div class="image-container">
+                        <div class="image-preview">
+                            <img src="${img.file_path}" alt="Image ${img.img_id}" onerror="this.src='https://via.placeholder.com/150?text=Image+Not+Found'">
+                            <div class="image-info">
+                                <div class="image-id">Image ID: ${img.img_id} | Message ID: ${img.msg_id}</div>
+                                <div class="message-context">${escapeHtml(img.short_content)}</div>
+                            </div>
+                        </div>
+                        <div class="description-title">Description:</div>
+                        <div class="description">${escapeHtml(img.description)}</div>
+                    </div>
+                `).join('');
+                
+                container.innerHTML = html;
+            };
+            
+            // Helper function to escape HTML
+            const escapeHtml = (unsafe) => {
+                return unsafe
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;")
+                    .replace(/\n/g, "<br>");
+            };
+            
+            // Initialize
+            const init = async () => {
+                try {
+                    const data = await getImageDescriptions();
+                    document.getElementById('loading').style.display = 'none';
+                    renderImageDescriptions(data);
+                } catch (error) {
+                    document.getElementById('loading').style.display = 'none';
+                    const errorElement = document.getElementById('error');
+                    errorElement.style.display = 'block';
+                    errorElement.textContent = `Error: ${error.message || error}`;
+                }
+            };
+            
+            // Check if API is ready, if not, wait
+            const checkApiAndInit = () => {
+                if (window.pywebview && window.pywebview.api) {
+                    init();
+                } else {
+                    // Wait for pywebviewready event
+                    window.addEventListener('pywebviewready', init);
+                    // Fallback if event doesn't fire
+                    setTimeout(checkApiAndInit, 500);
+                }
+            };
+            
+            checkApiAndInit();
+        });
+    </script>
+</body>
+</html> 

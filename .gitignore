@@ -1,4 +1,4 @@
-API_keys/gemini_api_key.json
+API_keys
 Databases/messages.db
 Databases/projects.db
 .DS_Store
@@ -20,3 +20,10 @@ chrome-data/
 telegram_logs/
 .env
 Utils/__pycache__/telegram_utils.cpython-310.pyc
+dist/
+telegram_logs/
+chrome-data/
+RemainderApp.spec
+Utils/__pycache__
+__pycache__
+build/
