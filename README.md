@@ -131,7 +131,6 @@ pyinstaller RemainderApp.spec
 *   **Web Scraping:** Selenium (for WhatsApp)
 
 ## Future Considerations / TODOs
-(This section can be expanded based on comments in the code or project goals)
 *   Generate `requirements.txt`.
 *   Review and potentially remove legacy code in the `UI/` directory.
 *   Improve WhatsApp scraping integration for direct data return to the app instead of console output.
